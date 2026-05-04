@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>My Personal Leads | GCC Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-main: #f3f4f9; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-primary: #1e293b; --text-secondary: #64748b;
+            --indigo-accent: #6366f1; --brd: #e2e8f0; --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --danger: #f43f5e; --success: #10b981; --warning: #f59e0b;
+            --sidebar-width: 280px; --sidebar-collapsed-width: 85px;
+        }
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+        
+         /* SIDEBAR STRUCTURE */
+        .sidebar { 
+            width: var(--sidebar-width); background: var(--sidebar-bg); height: 100vh; 
+            padding: 2rem 1.2rem; position: fixed; border-right: 1px solid var(--brd); 
+            z-index: 100; display: flex; flex-direction: column;
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.02); box-sizing: border-box;
+        }
+        body.collapsed .sidebar { width: var(--sidebar-collapsed-width); padding: 2rem 0.8rem; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; padding: 0 10px; }
+        .logo-text { color: var(--indigo-accent); font-weight: 800; font-size: 1.4rem; letter-spacing: -1px; transition: opacity 0.3s; }
+        body.collapsed .logo-text { opacity: 0; pointer-events: none; width: 0; }
+        #toggleBtn { background: #f1f5ff; border: none; color: var(--indigo-accent); padding: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+
+        .nav-group { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; overflow-y: auto; }
+        .nav-item { padding: 14px 18px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 15px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; white-space: nowrap; transition: 0.3s; }
+        .nav-icon { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+        body.collapsed .nav-text { display: none; }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); }
+        
+        .logout-box { padding-top: 20px; border-top: 1px solid var(--brd); margin-top: auto; padding-bottom: 10px; }
+        .logout-link { color: var(--danger) !important; font-weight: 700; display: flex; align-items: center; gap: 15px; text-decoration: none; padding: 12px 16px; border-radius: 12px; transition: 0.2s; font-size: 0.95rem; }
+        .logout-link:hover { background: #fff1f2; }
+        .main-wrapper { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 3.5rem; box-sizing: border-box; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        body.collapsed .main-wrapper { margin-left: var(--sidebar-collapsed-width); width: calc(100% - var(--sidebar-collapsed-width)); }
+        
+        .registry-card { background: var(--card-bg); padding: 2.2rem; border-radius: 32px; border: 1px solid var(--brd); box-shadow: var(--shadow); margin-bottom: 40px; }
+        
+        .lead-table { width: 100%; border-collapse: separate; border-spacing: 0 12px; }
+        .lead-table th { text-align: left; padding: 0 20px; font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
+        .lead-table td { padding: 20px; background: #ffffff; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        .lead-table tr td:first-child { border-left: 1px solid #f1f5f9; border-radius: 20px 0 0 20px; }
+        .lead-table tr td:last-child { border-right: 1px solid #f1f5f9; border-radius: 0 20px 20px 0; }
+
+        .identity-text { font-size: 1.05rem; font-weight: 800; color: #1e293b; letter-spacing: -0.5px; }
+        .contact-info b { display: block; font-size: 0.95rem; color: #1e293b; }
+        .contact-info span { font-size: 0.8rem; color: var(--text-secondary); }
+
+        .status-text { font-weight: 800; font-size: 0.95rem; }
+        .status-close { color: var(--indigo-accent); }
+        .status-new { color: var(--success); }
+
+        .btn-action { width: 34px; height: 34px; border-radius: 10px; border: 1.5px solid var(--brd); background: white; cursor: pointer; transition: 0.3s; color: var(--text-secondary); display: inline-flex; align-items: center; justify-content: center; margin-left: 5px; text-decoration: none; }
+        .btn-action:hover { border-color: var(--indigo-accent); color: var(--indigo-accent); background: #f1f5ff; }
+        .btn-delete:hover { border-color: var(--danger); color: var(--danger); background: #fff1f2; }
+        .btn-done:hover { border-color: var(--success); color: var(--success); background: #f0fdf4; }
+
+        .btn-close-sale { border: 1.5px solid #d1fae5; background: #ecfdf5; color: var(--success); padding: 10px 18px; border-radius: 12px; font-weight: 800; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: 0.3s; }
+        .btn-close-sale:hover { background: var(--success); color: white; }
+        .btn-closed-badge { border: 1.5px solid #e0e7ff; background: #f5f7ff; color: var(--indigo-accent); padding: 10px 18px; border-radius: 12px; font-weight: 800; font-size: 0.7rem; text-transform: uppercase; display: inline-block; opacity: 0.7; }
+
+        .modal-input-group { text-align: left; margin-top: 15px; }
+        .modal-input-group label { font-size: 0.65rem; font-weight: 900; text-transform: uppercase; color: var(--text-secondary); display: block; margin-bottom: 5px; }
+        .modal-field { width: 100%; padding: 12px 15px; border-radius: 12px; border: 1.5px solid var(--brd); background: #f8fafc; font-family: inherit; font-weight: 600; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="logo-text">GCC SMART</span>
+            <button id="toggleBtn" onclick="toggleSidebar()">
+                <svg id="toggleIcon" class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path></svg>
+            </button>
+        </div>
+        <div class="nav-group">
+           <a th:href="@{/manager/dashboard}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                <span class="nav-text">Overview</span>
+            </a>
+            <a th:href="@{/manager/my-leads}" class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"/></svg>
+                <span class="nav-text">My Leads</span>
+            </a>
+            <a th:href="@{/manager/tasks}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                <span class="nav-text">Tasks</span>
+            </a>
+            <a th:href="@{/manager/assign-hr-task}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span class="nav-text">Assign HR Tasks</span>
+            </a>
+
+            <a th:href="@{/manager/pipeline}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                <span class="nav-text">Pipeline</span>
+            </a>
+            <a th:href="@{/manager/lead-capture}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"/></svg>
+                <span class="nav-text">Team Leads</span>
+            </a>
+            <a th:href="@{/manager/executives}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path></svg>
+                <span class="nav-text">Manage Team</span>
+            </a>
+            <a th:href="@{/manager/closed-sales}" class="nav-item" th:classappend="${currentPage == 'closed' ? 'active' : ''}">
+        		<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        		<span class="nav-text">Team Sales</span>
+    		</a>
+    
+            <a th:href="@{/manager/performance}" class="nav-item">
+    			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+    			<span class="nav-text">Performance</span>
+			</a>
+			
+ 			<a th:href="@{/manager/leave/requests}" class="nav-item">
+    			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path></svg>
+    			<span class="nav-text">Team Leaves</span>
+   			</a>
+   			
+			<a th:href="@{/leave/apply}" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+    			<span class="nav-text">Apply My Leave</span>
+            </a>
+            
+            <a th:href="@{/manager/profile}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <span class="nav-text">Settings</span>
+            </a>
+
+        	</div>
+        	<div class="logout-box">
+            <a th:href="@{/logout}" class="logout-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span class="nav-text">Logout System</span>
+            </a>
+        	</div>
+    </aside>
+
+    <div class="main-wrapper">
+        <header style="margin-bottom: 30px;">
+            <h1 style="margin: 0; font-weight: 900; letter-spacing: -2px; font-size: 2.5rem; color: #1e293b;">1. Personal Registry</h1>
+            <p style="color: var(--text-secondary); font-size: 1rem;">Manage active opportunities and close deals.</p>
+        </header>
+
+        <div class="registry-card">
+            <h3 style="margin:0 0 20px 0; font-size: 1rem; font-weight: 800;">ACTIVE LEADS</h3>
+            <table class="lead-table">
+                <thead>
+                    <tr>
+                        <th>Identity</th>
+                        <th>Contact</th>
+                        <th>Follow-up Date</th>
+                        <th>Follow-up Status</th>
+                        <th>Status</th>
+                        <th>Sale Action</th>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="l : ${leads}">
+                        <td><span class="identity-text" th:text="${l.customerName}"></span></td>
+                        <td><div class="contact-info"><b th:text="${l.phoneNumber}"></b><span th:text="${l.email}"></span></div></td>
+                        <td><b th:text="${l.followUpDate != null ? l.followUpDate : 'Not Scheduled'}" style="color:var(--indigo-accent); font-size:0.85rem;"></b></td>
+                        
+                        <td>
+                            <div th:switch="${l.followUpStatus}">
+                                <span th:case="'Completed'" style="color:var(--success); font-weight:800; font-size:0.75rem; text-transform:uppercase;">● Completed</span>
+                                <div th:case="*">
+                                    <span th:if="${l.followUpDate != null and l.followUpDate.isBefore(#temporals.createToday())}" 
+                                          style="color:var(--danger); font-weight:800; font-size:0.75rem; text-transform:uppercase;">● Overdue</span>
+                                    <span th:if="${l.followUpDate == null or !l.followUpDate.isBefore(#temporals.createToday())}" 
+                                          style="color:var(--warning); font-weight:800; font-size:0.75rem; text-transform:uppercase;">● Pending</span>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td><span th:text="${l.status}" th:class="'status-text ' + (${l.status == 'New' ? 'status-new' : ''})"></span></td>
+                        <td><button class="btn-close-sale" th:onclick="openSaleModal([[${l.id}]], [[${l.customerName}]])">Close Sale</button></td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 5px; justify-content: flex-end;">
+                                
+                                <button class="btn-action" title="Edit Lead" th:onclick="openEditModal([[${l.id}]], [[${l.customerName}]], [[${l.phoneNumber}]], [[${l.email}]], [[${l.source}]], [[${l.status}]], [[${l.followUpDate}]])">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 00 2 2h14a2 2 0 00 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                </button>
+                                <a th:href="@{'/leads/delete/' + ${l.id}}" class="btn-action btn-delete" title="Delete" onclick="return confirm('Delete lead permanently?')">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <header style="margin-bottom: 20px;">
+            <h1 style="margin: 0; font-weight: 900; letter-spacing: -1.5px; font-size: 2.2rem; color: #1e293b;">2. Closed Sales Archive</h1>
+        </header>
+
+        <div class="registry-card">
+            <table class="lead-table">
+                <thead><tr><th>Identity</th><th>Contact</th><th>Source</th><th>Status</th><th>Financial Status</th><th style="text-align:right;">Actions</th></tr></thead>
+                <tbody>
+                    <tr th:each="cl : ${closedLeads}">
+                        <td><span class="identity-text" th:text="${cl.customerName}"></span></td>
+                        <td><div class="contact-info"><b th:text="${cl.phoneNumber}"></b><span th:text="${cl.email}"></span></div></td>
+                        <td th:text="${cl.source}"></td>
+                        <td><span class="status-text status-close">Close</span></td>
+                        <td><span class="btn-closed-badge">REVENUE RECORDED</span></td>
+                        <td style="text-align: right;">
+    <button class="btn-action" title="View Sale Summary" 
+            th:onclick="viewSaleDetails([[${cl.customerName}]], [[${cl.notes}]])">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 00 2 2h12a2 2 0 00 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+        </svg>
+    </button>
+</td>                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        function toggleSidebar() { document.body.classList.toggle('collapsed'); }
+
+     // UPDATED: FIXED ABSOLUTE PATH TO PREVENT 404
+        function markDone(leadId) {
+            Swal.fire({
+                title: 'Follow-up Completed!',
+                text: 'The lead status is being updated...',
+                icon: 'success',
+                showConfirmButton: false,
+                timer: 1500,
+                willClose: () => {
+                    // Adding the leading "/" ensures it hits http://localhost:8080/leads/...
+                    // instead of http://localhost:8080/manager/leads/...
+                    window.location.href = '/leads/mark-followup-complete/' + leadId;
+                }
+            });
+        }
+
+        function openEditModal(id, name, phone, email, source, status, date) {
+            Swal.fire({
+                title: '<h2 style="margin:0; font-weight:900; letter-spacing:-1px;">Update Lead Profile</h2>',
+                html: `
+                    <div class="modal-input-group"><label>Customer Identity</label><input type="text" id="editName" value="${name}" class="modal-field"></div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:15px;">
+                        <div class="modal-input-group"><label>Phone</label><input type="text" id="editPhone" value="${phone}" class="modal-field"></div>
+                        <div class="modal-input-group"><label>Email</label><input type="email" id="editEmail" value="${email}" class="modal-field"></div>
+                    </div>
+                    <div class="modal-input-group"><label>Follow-up Date</label><input type="date" id="editDate" value="${date || ''}" class="modal-field"></div>
+                `,
+                showCancelButton: true, confirmButtonText: 'Apply Changes', confirmButtonColor: '#6366f1',
+                preConfirm: () => {
+                    return {
+                        id,
+                        customerName: document.getElementById('editName').value,
+                        phoneNumber: document.getElementById('editPhone').value,
+                        email: document.getElementById('editEmail').value,
+                        followUpDate: document.getElementById('editDate').value
+                    };
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const form = document.createElement('form');
+                    form.method = 'POST'; form.action = '/leads/update';
+                    Object.keys(result.value).forEach(k => {
+                        const input = document.createElement('input'); input.type = 'hidden'; input.name = k; input.value = result.value[k]; form.appendChild(input);
+                    });
+                    document.body.appendChild(form); form.submit();
+                }
+            });
+        }
+
+        function openSaleModal(leadId, customerName) {
+            const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+            const nowTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+            Swal.fire({
+                title: '<h2 style="margin:0; font-weight:900; letter-spacing:-1px;">Finalize Sale Deal</h2>',
+                html: `
+                    <div class="modal-input-group"><label>Customer Identity</label><input type="text" value="${customerName}" class="modal-field" disabled style="background:#f1f5ff; color:#6366f1;"></div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:15px;">
+                        <div class="modal-input-group"><label>Date</label><input type="text" value="${today}" class="modal-field" disabled></div>
+                        <div class="modal-input-group"><label>Time</label><input type="text" value="${nowTime}" class="modal-field" disabled></div>
+                    </div>
+                    <div class="modal-input-group"><label>Sale Value (₹)</label><input type="number" id="saleAmount" class="modal-field" placeholder="Enter amount"></div>
+                    
+                    <div class="modal-input-group">
+                        <label>Closing Remarks / Notes</label>
+                        <textarea id="saleRemarks" class="modal-field" placeholder="Add any final deal notes here..." style="min-height:80px; resize:none; padding-top:12px;"></textarea>
+                    </div>
+                `,
+                showCancelButton: true, confirmButtonText: 'Confirm & Save', confirmButtonColor: '#10b981',
+                preConfirm: () => {
+                    const amount = document.getElementById('saleAmount').value;
+                    const remarks = document.getElementById('saleRemarks').value; // CHANGED to remarks
+                    if (!amount) { Swal.showValidationMessage('Sale value required'); return false; }
+                    return { amount, remarks }; // CHANGED to remarks
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const form = document.createElement('form');
+                    form.method = 'POST'; form.action = '/executive/sale-close/submit';
+                    
+                    // UPDATED: key name changed from 'notes' to 'remarks'
+                    const data = { 
+                        leadId, 
+                        amount: result.value.amount, 
+                        remarks: result.value.remarks, 
+                        closeDate: today, 
+                        closeTime: nowTime 
+                    };
+
+                    for (const k in data) { 
+                        const input = document.createElement('input'); 
+                        input.type = 'hidden'; 
+                        input.name = k; 
+                        input.value = data[k]; 
+                        form.appendChild(input); 
+                    }
+                    document.body.appendChild(form); form.submit();
+                }
+            });
+        }
+     // NEW: FUNCTION TO ENABLE CLOSED SALES ACTION BUTTON
+        function viewSaleDetails(name, notes) {
+            Swal.fire({
+                title: '<h2 style="margin:0; font-weight:900; letter-spacing:-1px;">Deal Summary</h2>',
+                html: `
+                    <div style="text-align:left; background:#f8fafc; padding:20px; border-radius:20px; border:1.5px solid #e2e8f0;">
+                        <label style="font-size:0.6rem; font-weight:900; color:var(--text-secondary); text-transform:uppercase;">Customer</label>
+                        <div style="font-weight:800; font-size:1.1rem; color:#1e293b; margin-bottom:15px;">${name}</div>
+                        <label style="font-size:0.6rem; font-weight:900; color:var(--text-secondary); text-transform:uppercase;">Closure Details</label>
+                        <div style="color:var(--text-secondary); font-size:0.85rem; font-weight:600; line-height:1.6;">
+                            ${notes || 'Standard closure recorded. No specific remarks provided.'}
+                        </div>
+                    </div>`,
+                confirmButtonText: 'Done',
+                confirmButtonColor: '#6366f1'
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // 1. POPUP NOTIFICATIONS FOR ACTIONS
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // Notification for Deletion
+            if (urlParams.has('deleted')) {
+                Swal.fire({
+                    title: 'Record Removed',
+                    text: 'The lead has been permanently deleted.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    borderRadius: '24px'
+                });
+            }
+
+            // Notification for Editing/Update
+            if (urlParams.has('updated')) {
+                Swal.fire({
+                    title: 'Profile Updated',
+                    text: 'Customer details have been successfully synchronized.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    borderRadius: '24px'
+                });
+            }
+
+            // Notification for Sale Closure
+            if (urlParams.get('success') === 'sale_closed') {
+                Swal.fire({
+                    title: 'Deal Finalized!',
+                    text: 'The sale has been recorded and revenue updated.',
+                    icon: 'success',
+                    timer: 2500,
+                    showConfirmButton: false,
+                    borderRadius: '24px'
+                });
+            }
+
+            // Clean the URL so the popup doesn't reappear on refresh
+            window.history.replaceState({}, document.title, window.location.pathname);
+        });
+    </script>
+</body>
+</html>

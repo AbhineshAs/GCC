@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>My Tasks | GCC Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f3f4f9; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-primary: #2d3748; --text-secondary: #718096;
+            --indigo-accent: #6366f1; --brd: #edf2f7; --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --success: #10b981; --danger: #f43f5e; --warning: #f59e0b;
+            --sidebar-width: 280px; --sidebar-collapsed-width: 85px;
+        }
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+        
+        /* SIDEBAR STRUCTURE - EXACT DASHBOARD REPLICA */
+        .sidebar { 
+            width: var(--sidebar-width); background: var(--sidebar-bg); height: 100vh; 
+            padding: 2.5rem 1.2rem; position: fixed; border-right: 1px solid var(--brd); 
+            z-index: 100; display: flex; flex-direction: column;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.02); box-sizing: border-box;
+        }
+        body.collapsed .sidebar { width: var(--sidebar-collapsed-width); padding: 2.5rem 0.8rem; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; padding: 0 10px; }
+        .logo-text { color: var(--indigo-accent); font-weight: 800; font-size: 1.4rem; letter-spacing: -1px; transition: opacity 0.3s; white-space: nowrap; }
+        body.collapsed .logo-text { opacity: 0; pointer-events: none; width: 0; }
+        #toggleBtn { background: #f1f5ff; border: none; color: var(--indigo-accent); padding: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        
+        .nav-group { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; overflow-y: auto; }
+        .nav-item { padding: 14px 18px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 15px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; white-space: nowrap; transition: 0.3s; }
+        .nav-icon { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+        body.collapsed .nav-text { display: none; }
+        .nav-item:hover { background: #f8fafc; color: var(--indigo-accent); }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08); }
+        .logout-box { padding-top: 20px; border-top: 1px solid var(--brd); margin-top: auto; padding-bottom: 10px; }
+        .logout-btn { color: var(--danger) !important; font-weight: 700; transition: 0.2s; text-decoration: none; display: flex; align-items: center; gap: 15px; padding: 14px 18px; border-radius: 14px; }
+
+        /* MAIN AREA */
+        .main-wrapper { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 3rem 4rem; box-sizing: border-box; transition: 0.4s; }
+        body.collapsed .main-wrapper { margin-left: var(--sidebar-collapsed-width); width: calc(100% - var(--sidebar-collapsed-width)); }
+        
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; }
+        
+        .session-info-card { background: white; padding: 12px 20px; border-radius: 20px; border: 1px solid var(--brd); display: flex; align-items: center; gap: 20px; box-shadow: var(--shadow); }
+        .active-session-value { font-family: 'Inter', monospace; color: var(--indigo-accent); font-size: 1.1rem; font-weight: 800; }
+        .pulse-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse-green 2s infinite; }
+        
+        /* TABLE & CARDS */
+        .registry-card { background: white; border-radius: 24px; border: 1px solid var(--brd); box-shadow: var(--shadow); overflow: hidden; }
+        .card-header { padding: 1.5rem 2rem; border-bottom: 1px solid var(--brd); display: flex; justify-content: space-between; align-items: center; }
+        .staff-table { width: 100%; border-collapse: collapse; }
+        .staff-table th { text-align: left; padding: 1.2rem 2rem; background: #f8fafc; font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
+        .staff-table td { padding: 1.2rem 2rem; border-bottom: 1px solid var(--brd); vertical-align: middle; }
+        
+        .status-pill { padding: 4px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+        .status-pending { background: #fffbeb; color: var(--warning); }
+        .status-completed { background: #ecfdf5; color: var(--success); }
+        
+        /* REMINDER CARDS STYLES */
+		.reminders-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 2rem; }
+		.reminder-card { padding: 1.5rem; border-radius: 24px; display: flex; align-items: center; gap: 15px; border: 1px solid var(--brd); box-shadow: var(--shadow); background: white; }
+		.reminder-icon { width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+		.rem-overdue { border-left: 5px solid var(--danger); }
+		.rem-overdue .reminder-icon { background: #fff1f2; color: var(--danger); }
+		.rem-today { border-left: 5px solid var(--warning); }
+		.rem-today .reminder-icon { background: #fffbeb; color: var(--warning); }
+		.rem-text b { display: block; font-size: 1.2rem; color: var(--text-primary); line-height: 1.2; }
+		.rem-text span { font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; }
+
+        /* BUTTON STYLE */
+        .btn-complete { background: white; border: 1.5px solid var(--success); color: var(--success); padding: 6px 12px; border-radius: 10px; font-size: 0.7rem; font-weight: 800; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+        .btn-complete:hover { background: var(--success); color: white; transform: translateY(-1px); }
+        .status-overdue { background: #fff1f2; color: var(--danger); border: 1px solid #fecaca; }
+
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="logo-text">GCC SMART HR</span>
+            <button id="toggleBtn" onclick="toggleSidebar()">
+                <svg class="nav-icon" id="toggleIcon" viewBox="0 0 24 24"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path></svg>
+            </button>
+        </div>
+        <div class="nav-group">
+            <a th:href="@{/hr/dashboard}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                <span class="nav-text">Staff Registry</span>
+            </a>
+            <a th:href="@{/hr/payroll}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path></svg>
+                <span class="nav-text">Payroll Center</span>
+            </a>
+            
+            <a th:href="@{/hr/add-executive}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                <span class="nav-text">Add Executive</span>
+            </a>
+            <a th:href="@{/hr/tasks}" class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span class="nav-text">Manager Directives</span>
+            </a>
+            <a th:href="@{/hr/attendance/all}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span class="nav-text">Attendance</span>
+            </a>
+            <a th:href="@{/hr/leave/apply}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <span class="nav-text">Apply Leave</span>
+            </a>
+        </div>
+            <div class="logout-box">
+            <a th:href="@{/logout}" class="nav-item logout-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span class="nav-text">Logout System</span>
+            </a>
+        </div>  
+        
+         </aside>
+        
+        
+
+    <div class="main-wrapper">
+        <div class="dashboard-header">
+            <div>
+                <h1 style="font-weight: 900; letter-spacing: -2px; font-size: 2.2rem; margin:0;">Operational Tasks</h1>
+                <p style="color: var(--text-secondary); margin-top: 5px;">Directives assigned by <b th:text="${managerName}" style="color: var(--indigo-accent);">Manager</b></p>
+            </div>
+
+            <div th:if="${checkInTime != null}" class="session-info-card">
+                <div class="session-stat">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="pulse-dot"></div>
+                        <span class="session-label">Active Session</span>
+                    </div>
+                    <span id="activeTimer" class="active-session-value">00:00:00</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="reminders-container">
+    <div class="reminder-card rem-overdue">
+        
+        <div class="rem-text">
+            <b th:text="${overdueCount}">0</b>
+            <span>Overdue Directives</span>
+        </div>
+    </div>
+
+    <div class="reminder-card rem-today">
+        
+        <div class="rem-text">
+            <b th:text="${dueTodayCount}">0</b>
+            <span>Due Today</span>
+        </div>
+    </div>
+</div>
+
+        <div class="registry-card">
+            <div class="card-header">
+                <h3 style="margin:0; font-size: 1rem; font-weight: 800; color: var(--text-primary);">TEAM DIRECTIVES</h3>
+                <span class="status-pill" style="background:#e0f2fe; color:#0369a1;" th:text="${myTasks.size()} + ' Total'">0 Total</span>
+            </div>
+            <table class="staff-table">
+                <thead>
+                    <tr>
+                        <th>Directive Information</th>
+                        <th>Status</th>
+                        <th>Deadline</th>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+               <tbody>
+    <tr th:each="task : ${myTasks}">
+        <td>
+            <div style="font-weight: 700; color: var(--text-primary);" th:text="${task.title}">Task Title</div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;" th:text="${task.description}">Description</div>
+        </td>
+        <td>
+            <span th:if="${task.status == 'COMPLETED'}" class="status-pill status-completed">COMPLETED</span>
+
+            <span th:if="${task.status == 'PENDING' and task.dueDate.isBefore(T(java.time.LocalDate).now())}" 
+                  class="status-pill status-overdue" 
+                  style="background: #fff1f2; color: var(--danger); border: 1px solid #fecaca;">OVERDUE</span>
+
+            <span th:if="${task.status == 'PENDING' and !task.dueDate.isBefore(T(java.time.LocalDate).now())}" 
+                  class="status-pill status-pending">PENDING</span>
+        </td>
+        <td style="font-weight: 600; color: var(--text-secondary);" th:text="${task.dueDate}"></td>
+        <td style="text-align: right;">
+            <a th:if="${task.status == 'PENDING'}" 
+               th:href="@{/hr/tasks/complete/{id}(id=${task.id})}" 
+               class="btn-complete">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Mark Done
+            </a>
+            <span th:if="${task.status == 'COMPLETED'}" style="color: var(--success); font-weight: 800; font-size: 0.7rem;">TASK FINISHED</span>
+        </td>
+    </tr>
+    <tr th:if="${#lists.isEmpty(myTasks)}">
+        <td colspan="4" style="text-align: center; padding: 3rem; color: var(--text-secondary); font-weight: 600;">No tasks assigned yet.</td>
+    </tr>
+</tbody>
+            </table>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        function toggleSidebar() { 
+            document.body.classList.toggle('collapsed');
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkInStr = /*[[${checkInTime}]]*/ null;
+            const display = document.getElementById('activeTimer');
+            if (!checkInStr || !display) return;
+            const startTime = new Date(checkInStr).getTime();
+            setInterval(() => {
+                const diff = new Date().getTime() - startTime;
+                const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+                display.innerText = String(h).padStart(2, '0') + ":" + String(m).padStart(2, '0') + ":" + String(s).padStart(2, '0');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

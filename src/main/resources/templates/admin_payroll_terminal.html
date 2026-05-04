@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Management Payroll | GCC Smart Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f3f4f9; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-primary: #2d3748; --text-secondary: #718096;
+            --indigo-accent: #6366f1; --brd: #edf2f7; --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --success: #10b981; --warning: #f59e0b; --danger: #f43f5e;
+            --sidebar-width: 280px; --sidebar-collapsed-width: 85px;
+        }
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+
+        /* SIDEBAR STRUCTURE - UNTOUCHED */
+        .sidebar { 
+            width: var(--sidebar-width); background: var(--sidebar-bg); height: 100vh; 
+            padding: 2.5rem 1.2rem; position: fixed; border-right: 1px solid var(--brd); 
+            z-index: 100; display: flex; flex-direction: column;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.02); box-sizing: border-box;
+        }
+        body.collapsed .sidebar { width: var(--sidebar-collapsed-width); padding: 2.5rem 0.8rem; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; padding: 0 10px; }
+       .logo-text { color: var(--indigo-accent); font-weight: 800; font-size: 1.4rem; letter-spacing: -1px; transition: opacity 0.3s; }
+        body.collapsed .logo-text { opacity: 0; pointer-events: none; width: 0; }
+        #toggleBtn { background: #f1f5ff; border: none; color: var(--indigo-accent); padding: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        #toggleBtn:hover { background: var(--indigo-accent); color: white; }
+
+        .nav-group { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; overflow-y: auto; }
+        .nav-item { padding: 14px 18px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 15px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; white-space: nowrap; transition: 0.3s; }
+        .nav-icon { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+        body.collapsed .nav-text { display: none; }
+        .nav-item:hover { background: #f8fafc; color: var(--indigo-accent); }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08); }
+
+        .logout-box { padding-top: 20px; border-top: 1px solid var(--brd); margin-top: auto; padding-bottom: 10px; }
+        .logout-btn { color: var(--danger) !important; font-weight: 700; transition: 0.2s; text-decoration: none; display: flex; align-items: center; gap: 15px; padding: 14px 18px; border-radius: 14px; }
+        .logout-btn:hover { background: #fff1f2 !important; }
+
+        /* MAIN AREA */
+        .main-wrapper { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 3.5rem; box-sizing: border-box; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        body.collapsed .main-wrapper { margin-left: var(--sidebar-collapsed-width); width: calc(100% - var(--sidebar-collapsed-width)); }
+        
+        .page-header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 35px; }
+
+        .session-info-card { background: white; padding: 12px 20px; border-radius: 20px; border: 1px solid var(--brd); display: flex; align-items: center; gap: 20px; box-shadow: var(--shadow); }
+        .session-stat { display: flex; flex-direction: column; }
+        .session-label { font-size: 0.6rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+        .active-session-value { font-family: 'Inter', monospace; color: var(--indigo-accent); font-size: 1.1rem; font-weight: 800; }
+        .pulse-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse-green 2s infinite; }
+
+        /* TABLE STYLES */
+        .registry-card { background: white; border-radius: 24px; border: 1px solid var(--brd); box-shadow: var(--shadow); overflow: hidden; }
+        .card-header { padding: 1.5rem 2rem; border-bottom: 1px solid var(--brd); display: flex; justify-content: space-between; align-items: center; }
+        .payroll-table { width: 100%; border-collapse: collapse; }
+        .payroll-table th { text-align: left; padding: 1.2rem 2rem; background: #f8fafc; font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
+        .payroll-table td { padding: 1.2rem 2rem; border-bottom: 1px solid var(--brd); vertical-align: middle; }
+
+        .btn-batch { background: var(--indigo-accent); color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 800; cursor: pointer; transition: 0.3s; }
+        .btn-batch:hover { transform: translateY(-2px); box-shadow: 0 10px 15px rgba(99, 102, 241, 0.3); }
+
+        .btn-edit { background: #f1f5ff; color: var(--indigo-accent); border: none; padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 0.7rem; cursor: pointer; transition: 0.2s; text-decoration: none; }
+        .btn-edit:hover { background: var(--indigo-accent); color: white; }
+
+        .role-tag { background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+
+        /* MODAL STYLES */
+        .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1001; align-items:center; justify-content:center; backdrop-filter: blur(4px); }
+        .modal-content { background: white; width: 600px; border-radius: 28px; padding: 2.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.1); max-height: 90vh; overflow-y: auto; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { margin-bottom: 1.2rem; }
+        .form-group.full { grid-column: span 2; }
+        .form-group label { display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px; }
+        .form-control { width: 100%; padding: 12px 16px; border-radius: 12px; border: 1.5px solid var(--brd); font-family: 'Inter', sans-serif; font-weight: 600; box-sizing: border-box; }
+        .form-control:focus { outline: none; border-color: var(--indigo-accent); }
+
+        @keyframes pulse-green { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="logo-text">GCC SMART ADMIN</span>
+            <button id="toggleBtn" onclick="toggleSidebar()">
+                <svg class="nav-icon" id="toggleIcon" viewBox="0 0 24 24"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path></svg>
+            </button>
+        </div>
+        
+        <div class="nav-group">
+            <a th:href="@{/admin/dashboard}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                <span class="nav-text">Overview</span>
+            </a>
+            <a th:href="@{/admin/payroll}" class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path></svg>
+                <span class="nav-text">Payroll Mgmt</span>
+            </a>
+            <a th:href="@{/admin/manage-managers}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle></svg>
+                <span class="nav-text">Manage Managers</span>
+            </a>
+            <a th:href="@{/admin/manage-hr}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle></svg>
+                <span class="nav-text">Manage HR</span>
+            </a>
+            <a th:href="@{/admin/manage-executives}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                <span class="nav-text">Manage Executives</span>
+            </a>
+            
+            <a th:href="@{/admin/manager-leads}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5M2 17l10 5 10-5"></path></svg>
+                <span class="nav-text">Manager Leads</span>
+            </a>
+            <a th:href="@{/admin/leads/report}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span class="nav-text">Leads Export</span>
+            </a>
+            
+            <a th:href="@{/admin/tasks/assign}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span class="nav-text">Assign Tasks</span>
+            </a>
+            <a th:href="@{/admin/performance/managers}" class="nav-item">
+            	<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+    			<span class="nav-text">Manager Analytics</span>
+			</a>
+			<a th:href="@{/admin/attendance/list}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span class="nav-text">Attendance Logs</span>
+            </a>
+            <a th:href="@{/admin/sales}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                <span class="nav-text">Closed Sales</span>
+            </a>
+            
+            <a th:href="@{/admin/finance/terminal}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path></svg>
+                <span class="nav-text">Finance Center</span>
+            </a>
+            <a th:href="@{/admin/leave/requests}" class="nav-item">
+    			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+    			<span class="nav-text">Manager Leaves</span>
+    			<span th:if="${pendingLeaves != null and !pendingLeaves.isEmpty()}" style="width: 8px; height: 8px; background: var(--danger); border-radius: 50%; margin-left: auto;"></span>
+			</a>
+            <a th:href="@{/admin/profile}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <span class="nav-text">Profile</span>
+            </a>
+        </div>
+
+        <div class="logout-box">
+            <a th:href="@{/logout}" class="nav-item logout-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline></svg>
+                <span class="nav-text">Logout System</span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <div class="page-header-container">
+            <header>
+                <h1 style="font-weight: 900; letter-spacing: -2px; font-size: 2.2rem; margin: 0;">Management Payroll</h1>
+                <p style="color: var(--text-secondary); margin-top: 5px;" th:text="'Payroll Cycle: ' + ${currentCycle}"></p>
+            </header>
+
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div th:if="${checkInTime != null}" class="session-info-card">
+                    <div class="session-stat">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div class="pulse-dot"></div>
+                            <span class="session-label">Active Session</span>
+                        </div>
+                        <span id="activeTimer" class="active-session-value">00:00:00</span>
+                    </div>
+                </div>
+
+                <form th:action="@{/payroll/generate}" method="post">
+                    <button type="submit" class="btn-batch">Run Management Batch</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="registry-card">
+            <div class="card-header">
+                <h3 style="margin:0; font-size: 1rem; font-weight: 800; color: var(--text-primary);">MANAGEMENT PAYROLL RECORDS</h3>
+                <span class="role-tag" style="background:#e0f2fe; color:#0369a1;">Admin Verified</span>
+            </div>
+            <table class="payroll-table">
+                <thead>
+                    <tr>
+                        <th>Management Staff</th>
+                        <th>Base Salary</th>
+                        <th>Deductions</th>
+                        <th style="text-align: right;">Net Payable</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="p : ${payrolls}">
+                        <td>
+                            <div style="font-weight: 700; color: var(--text-primary);" th:text="${p.user.name}">Name</div>
+                            <span class="role-tag" th:text="${p.user.role}">ROLE</span>
+                        </td>
+                        <td th:text="'SAR ' + ${#numbers.formatDecimal(p.basicSalary, 0, 'COMMA', 2, 'POINT')}"></td>
+                        <td>
+						    <div style="font-size: 0.75rem; color: var(--danger); font-weight: 600;" 
+						         th:text="'- LOP: SAR ' + ${#numbers.formatDecimal(p.lopDeduction, 0, 'COMMA', 2, 'POINT')}">
+						    </div>
+						    <div style="font-size: 0.75rem; color: var(--danger); font-weight: 600;" 
+						         th:text="'- GOSI: SAR ' + ${#numbers.formatDecimal(p.gosiDeduction, 0, 'COMMA', 2, 'POINT')}">
+						    </div>
+						</td>
+                        <td style="text-align: right;">
+                            <span style="font-weight: 800; color: var(--indigo-accent); font-size: 1.1rem;" 
+                                  th:text="'SAR ' + ${#numbers.formatDecimal(p.netSalary, 0, 'COMMA', 2, 'POINT')}"></span>
+                        </td>
+                        <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+							<a th:href="@{/payroll/download-slip/{id}(id=${p.id})}" class="btn-edit" style="background: #ecfdf5; color: #059669; display: flex; align-items: center;">Slip</a>
+                            <button class="btn-edit" th:onclick="'openSalaryModal(' + ${p.user.id} + ', ' + ${p.basicSalary} + ', ' + ${p.lopDeduction} + ')'">Configure</button>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(payrolls)}">
+                        <td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 600;">No records. Click "Run Management Batch" to generate.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="salaryModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 style="margin-top:0; letter-spacing: -1px; font-weight: 900;">Salary Architecture</h2>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 2rem;">Comprehensive payroll configuration for management staff.</p>
+            
+            <form th:action="@{/admin/payroll/update-profile}" method="post">
+                <input type="hidden" name="userId" id="modalUserId">
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Monthly Basic Pay</label>
+                        <input type="number" name="basicSalary" id="modalBasic" step="0.01" class="form-control" placeholder="0.00" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>GOSI Number</label>
+                        <input type="text" name="gosiNumber" class="form-control" placeholder="XXXXXXXXX">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Housing Allowance</label>
+                        <input type="number" name="housingAllowance" step="0.01" class="form-control" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Transport Allowance</label>
+                        <input type="number" name="transportationAllowance" step="0.01" class="form-control" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Other Allowances</label>
+                        <input type="number" name="otherAllowances" step="0.01" class="form-control" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Loss of Pay (Deduction)</label>
+                        <input type="number" name="lopDeduction" id="modalLop" step="0.01" class="form-control" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group full">
+                        <label>IBAN Number (WPS Compliance)</label>
+                        <input type="text" name="ibanNumber" class="form-control" placeholder="SAXXXXXXXXXXXXXXXXXXXXXX">
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem; display: flex; flex-direction: column; gap: 10px;">
+                    <button type="submit" class="btn-batch" style="width: 100%;">Commit Financial Structure</button>
+                    <button type="button" onclick="closeModal()" style="background: none; border: none; color: var(--text-secondary); font-weight: 700; cursor: pointer; padding: 10px;">Dismiss</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        function openSalaryModal(userId, currentBasic, currentLop) {
+            document.getElementById('modalUserId').value = userId;
+            document.getElementById('modalBasic').value = currentBasic;
+            document.getElementById('modalLop').value = currentLop || 0;
+            document.getElementById('salaryModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('salaryModal').style.display = 'none';
+        }
+
+        function toggleSidebar() { 
+            document.body.classList.toggle('collapsed');
+            const icon = document.getElementById('toggleIcon');
+            icon.innerHTML = document.body.classList.contains('collapsed') 
+                ? '<path d="M13 17l5-5-5-5M6 17l5-5-5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path>' 
+                : '<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path>';
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkInStr = /*[[${checkInTime}]]*/ null;
+            const display = document.getElementById('activeTimer');
+            
+            if (!checkInStr || !display) return;
+
+            const startTime = new Date(checkInStr).getTime();
+
+            function updateClock() {
+                const now = new Date().getTime();
+                const diff = now - startTime;
+
+                if (diff >= 0) {
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    const s = Math.floor((diff % 60000) / 1000);
+
+                    display.innerText = 
+                        String(h).padStart(2, '0') + ":" + 
+                        String(m).padStart(2, '0') + ":" + 
+                        String(s).padStart(2, '0');
+                }
+            }
+
+            setInterval(updateClock, 1000);
+            updateClock(); 
+        });
+    </script>
+</body>
+</html>

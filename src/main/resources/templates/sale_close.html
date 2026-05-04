@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Sale Finalized | GCC Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg-main: #f3f4f9; --indigo-accent: #6366f1; --success: #10b981; --text-primary: #1e293b; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg-main); display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .receipt-card { background: white; padding: 3rem; border-radius: 40px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
+        .check-circle { width: 80px; height: 80px; background: #f0fdf4; color: var(--success); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+        .detail-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed #e2e8f0; }
+        .label { color: #64748b; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; }
+        .value { color: var(--text-primary); font-weight: 800; }
+        .btn-back { display: block; margin-top: 2rem; background: var(--indigo-accent); color: white; padding: 14px; border-radius: 14px; text-decoration: none; font-weight: 700; }
+    </style>
+</head>
+<body>
+    <div class="receipt-card">
+        <div class="check-circle"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"></path></svg></div>
+        <h1 style="font-weight:900; letter-spacing:-1px; margin:0;">Sale Closed</h1>
+        <p style="color:#64748b; font-weight:600; margin-bottom:2rem;">Deal successfully recorded</p>
+        
+        <div class="detail-row"><span class="label">Customer</span><span class="value" th:text="${customerName}">Name</span></div>
+        <div class="detail-row"><span class="label">Final Amount</span><span class="value" style="color:var(--success)" th:text="'₹' + ${amount}">₹0</span></div>
+        <div class="detail-row"><span class="label">Closing Date</span><span class="value" th:text="${closeDate}">Date</span></div>
+        <div class="detail-row"><span class="label">Closing Time</span><span class="value" th:text="${closeTime}">Time</span></div>
+        
+        <div style="margin-top:20px; text-align:left;">
+            <span class="label">Manager Remarks:</span>
+            <p style="font-style:italic; font-weight:500; font-size:0.9rem; color:var(--text-primary);" th:text="${remarks}">No remarks.</p>
+        </div>
+
+        <a th:href="@{/executive/lead-capture}" class="btn-back">Return to Terminal</a>
+    </div>
+</body>
+</html>

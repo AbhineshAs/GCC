@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Team Absence Control | GCC Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --bg-main: #f3f4f9; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-primary: #1e293b; --text-secondary: #64748b;
+            --indigo-accent: #6366f1; --brd: #e2e8f0; --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --danger: #f43f5e; --success: #10b981; --warning: #f59e0b;
+            --sidebar-width: 280px; --sidebar-collapsed-width: 85px;
+        }
+
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+
+        /* SIDEBAR STRUCTURE */
+        .sidebar { 
+            width: var(--sidebar-width); background: var(--sidebar-bg); height: 100vh; 
+            padding: 2rem 1.2rem; position: fixed; border-right: 1px solid var(--brd); 
+            z-index: 100; display: flex; flex-direction: column;
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.02); box-sizing: border-box;
+        }
+        body.collapsed .sidebar { width: var(--sidebar-collapsed-width); padding: 2rem 0.8rem; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; padding: 0 10px; }
+        .logo-text { color: var(--indigo-accent); font-weight: 800; font-size: 1.4rem; letter-spacing: -1px; transition: opacity 0.3s; }
+        body.collapsed .logo-text { opacity: 0; pointer-events: none; width: 0; }
+        #toggleBtn { background: #f1f5ff; border: none; color: var(--indigo-accent); padding: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+
+        .nav-group { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; overflow-y: auto; }
+        .nav-item { padding: 14px 18px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 15px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; white-space: nowrap; transition: 0.3s; }
+        .nav-icon { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+        body.collapsed .nav-text { display: none; }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); }
+        
+        .logout-box { padding-top: 20px; border-top: 1px solid var(--brd); margin-top: auto; padding-bottom: 10px; }
+        .logout-link { color: var(--danger) !important; font-weight: 700; display: flex; align-items: center; gap: 15px; text-decoration: none; padding: 12px 16px; border-radius: 12px; transition: 0.2s; font-size: 0.95rem; }
+        .logout-link:hover { background: #fff1f2; }
+
+        /* CONTENT WRAPPER */
+        .main-wrapper { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 3.5rem; box-sizing: border-box; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        body.collapsed .main-wrapper { margin-left: var(--sidebar-collapsed-width); width: calc(100% - var(--sidebar-collapsed-width)); }
+
+        .page-header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
+
+        /* SESSION INFO CARD */
+        .session-info-card { background: white; padding: 12px 20px; border-radius: 20px; border: 1px solid var(--brd); display: flex; align-items: center; gap: 20px; box-shadow: var(--shadow); }
+        .session-stat { display: flex; flex-direction: column; }
+        .session-label { font-size: 0.6rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+        .session-value { font-weight: 800; color: var(--text-primary); font-size: 0.95rem; }
+        .active-session-value { color: var(--indigo-accent); font-size: 1.1rem; font-family: monospace; }
+        .pulse-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse-green 2s infinite; }
+
+        /* Enhanced Table Alignment */
+.registry-table { width: 100%; border-collapse: separate; border-spacing: 0 16px; margin-top: -10px; }
+.registry-table th { 
+    text-align: left; padding: 0 20px 10px 20px; 
+    font-size: 0.7rem; color: var(--text-secondary); 
+    text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800;
+}
+.registry-table td { 
+    padding: 24px 20px; background: #ffffff; 
+    border-top: 1px solid var(--brd); border-bottom: 1px solid var(--brd); 
+    vertical-align: middle; 
+}
+.registry-table td:first-child { border-left: 1px solid var(--brd); border-radius: 20px 0 0 20px; width: 25%; }
+.registry-table td:last-child { border-right: 1px solid var(--brd); border-radius: 0 20px 20px 0; }
+
+/* Action Button Container Alignment */
+.action-btn-group { display: flex; gap: 10px; justify-content: flex-end; align-items: center; }
+
+/* User Info Spacing */
+.user-info-box { display: flex; align-items: center; gap: 15px; }
+.user-details { display: flex; flex-direction: column; line-height: 1.3; }
+
+        .btn-approve { background: var(--success); color: white; border: none; padding: 10px 20px; border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .btn-reject { background: var(--danger); color: white; border: none; padding: 10px 20px; border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .btn-approve:hover, .btn-reject:hover { transform: scale(1.05); filter: brightness(1.1); }
+
+        /* SEARCH BAR STYLES */
+        .search-container { position: relative; max-width: 350px; }
+        .search-input { width: 100%; padding: 12px 15px 12px 45px; background: #f8fafc; border: 1.5px solid var(--brd); border-radius: 16px; font-family: inherit; font-size: 0.9rem; transition: 0.3s; box-sizing: border-box;}
+        .search-input:focus { outline: none; border-color: var(--indigo-accent); background: white; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.05); }
+        .search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); pointer-events: none; }
+
+        /* PILLS */
+        .status-pill { padding: 6px 12px; border-radius: 10px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; border: 1px solid transparent; }
+        .APPROVED { background: #f0fdf4; color: var(--success); border-color: #d1fae5; }
+        .REJECTED { background: #fff1f2; color: var(--danger); border-color: #fecdd3; }
+
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="logo-text">GCC SMART</span>
+            <button id="toggleBtn" onclick="toggleSidebar()">
+                <svg id="toggleIcon" class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path></svg>
+            </button>
+        </div>
+        <div class="nav-group">
+           <a th:href="@{/manager/dashboard}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                <span class="nav-text">Overview</span>
+            </a>
+            <a th:href="@{/manager/my-leads}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"/></svg>
+                <span class="nav-text">My Leads</span>
+            </a>
+             <a th:href="@{/manager/tasks}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                <span class="nav-text">Tasks</span>
+            </a>
+            <a th:href="@{/manager/assign-hr-task}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span class="nav-text">Assign HR Tasks</span>
+            </a>
+            <a th:href="@{/manager/pipeline}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                <span class="nav-text">Pipeline</span>
+            </a>
+            <a th:href="@{/manager/lead-capture}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"/></svg>
+                <span class="nav-text">Team Leads</span>
+            </a>
+            <a th:href="@{/manager/executives}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path></svg>
+                <span class="nav-text">Manage Team</span>
+            </a>
+            <a th:href="@{/manager/closed-sales}" class="nav-item" th:classappend="${currentPage == 'closed' ? 'active' : ''}">
+        		<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        		<span class="nav-text">Team Sales</span>
+    		</a>
+    
+            <a th:href="@{/manager/performance}" class="nav-item">
+    			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+    			<span class="nav-text">Performance</span>
+			</a>
+			
+ 			<a th:href="@{/manager/leave/requests}" class="nav-item active">
+    			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path></svg>
+    			<span class="nav-text">Team Leaves</span>
+   			</a>
+   			
+			<a th:href="@{/leave/apply}" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+    			<span class="nav-text">Apply My Leave</span>
+            </a>
+            
+            <a th:href="@{/manager/profile}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <span class="nav-text">Settings</span>
+            </a>
+
+        	</div>
+        	<div class="logout-box">
+            <a th:href="@{/logout}" class="logout-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span class="nav-text">Logout System</span>
+            </a>
+        	</div>
+    </aside>
+
+    <div class="main-wrapper">
+        <div class="page-header-container">
+            <header>
+                <h1 style="margin: 0; font-weight: 900; letter-spacing: -2px; font-size: 2.4rem;">Team Leave Approvals</h1>
+                <p style="color: var(--text-secondary); margin: 5px 0 0 0; font-weight: 500;">Manage absence requests for your assigned Executives</p>
+            </header>
+
+            <div th:if="${checkInTime != null}" class="session-info-card">
+                <div class="session-stat">
+                    <span class="session-label">Login Time</span>
+                    <span class="session-value" th:text="${#temporals.format(T(java.time.LocalDateTime).parse(checkInTime), 'hh:mm a')}">00:00 AM</span>
+                </div>
+                <div style="width: 1px; height: 30px; background: var(--brd);"></div>
+                <div class="session-stat">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="pulse-dot"></div>
+                        <span id="activeTimer" class="session-value active-session-value">00:00:00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-card">
+            <h3 style="margin-top:0; font-weight: 800; color: var(--indigo-accent); text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; margin-bottom: 20px;">Awaiting Action</h3>
+            <table class="registry-table">
+                <thead>
+                    <tr>
+                        <th>Executive</th>
+                        <th>Duration</th>
+                        <th>Type</th>
+                        <th>Reason</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+               <tbody>
+    <tr th:each="req : ${requests}">
+        <td>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; background: #f1f5ff; color: var(--indigo-accent); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem;">
+                    <span th:text="${#strings.substring(req.user.name, 0, 1)}"></span>
+                </div>
+                <div style="display: flex; flex-direction: column; line-height: 1.2;">
+                    <b th:text="${req.user.name}">HR Name</b>
+                    <span style="font-size: 0.65rem; color: var(--indigo-accent); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px;">HR Associate</span>
+                </div>
+            </div>
+        </td>
+        <td>
+            <b th:text="${req.startDate + ' to ' + req.endDate}"></b>
+        </td>
+        <td><span style="background: #fdf2f2; color: #991b1b; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.75rem;">HR LEAVE</span></td>
+        <td th:text="${req.reason}">Reason...</td>
+        <td style="text-align: right;">
+            <div th:if="${req.status == 'PENDING'}" style="display: flex; gap: 10px; justify-content: flex-end;">
+                <a th:href="@{'/manager/leave/action/' + ${req.id} + '/APPROVED'}" class="btn-approve" style="text-decoration: none; display: inline-flex; align-items: center;">Approve</a>
+                <a th:href="@{'/manager/leave/action/' + ${req.id} + '/REJECTED'}" class="btn-reject" style="text-decoration: none; display: inline-flex; align-items: center;">Reject</a>
+            </div>
+        </td>
+    </tr>
+
+    <tr th:each="leave : ${pendingLeaves}">
+        <td>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; background: #f8fafc; color: var(--text-secondary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; border: 1px solid var(--brd);">
+                    <span th:text="${#strings.substring(leave.user.name, 0, 1)}"></span>
+                </div>
+                <div style="display: flex; flex-direction: column; line-height: 1.2;">
+                    <b th:text="${leave.user.name}">Exec Name</b>
+                    <span style="font-size: 0.65rem; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; margin-top: 3px;">Executive</span>
+                </div>
+            </div>
+        </td>
+        <td>
+            <b th:text="${leave.startDate + ' to ' + leave.endDate}"></b>
+        </td>
+        <td><span style="background: #e0e7ff; color: var(--indigo-accent); padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.75rem;" th:text="${leave.leaveType}">SICK</span></td>
+        <td th:text="${leave.reason}">Reason...</td>
+        <td style="text-align: right;">
+            <form th:action="@{/leave/action}" method="post" style="display: flex; gap: 10px; justify-content: flex-end;">
+                <input type="hidden" name="id" th:value="${leave.id}">
+                <button type="submit" name="action" value="APPROVE" class="btn-approve">Approve</button>
+                <button type="submit" name="action" value="REJECT" class="btn-reject">Reject</button>
+            </form>
+        </td>
+    </tr>
+
+    <tr th:if="${#lists.isEmpty(pendingLeaves) and #lists.isEmpty(requests)}">
+        <td colspan="5" style="text-align: center; padding: 50px; color: var(--text-secondary);">No pending requests from HR or Executives.</td>
+    </tr>
+</tbody>
+            </table>
+        </div>
+
+        <div class="action-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                <h3 style="margin:0; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;">Processed History</h3>
+                
+                <div class="search-container">
+                    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
+                    <input type="text" id="historySearch" class="search-input" placeholder="Search by name, type, or status..." onkeyup="filterHistory()">
+                </div>
+            </div>
+
+            <table class="registry-table" id="historyTable">
+                <thead>
+                    <tr>
+                        <th>Executive</th>
+                        <th>Duration</th>
+                        <th>Type</th>
+                        <th style="text-align: right;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="hist : ${leaveHistory}">
+                        <td th:text="${hist.user.name}" style="font-weight: 700;"></td>
+                        <td>
+                            <div th:text="${hist.getTotalDays() + ' Working Days'}"></div>
+                            <small th:text="${hist.startDate + ' to ' + hist.endDate}" style="color: var(--text-secondary);"></small>
+                        </td>
+                        <td th:text="${hist.leaveType}"></td>
+                        <td style="text-align: right;">
+                            <span th:class="'status-pill ' + ${hist.status}" th:text="${hist.status}">STATUS</span>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(leaveHistory)}">
+                        <td colspan="4" style="text-align: center; padding: 50px; color: var(--text-secondary);">No historical records found.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        function toggleSidebar() {
+            document.body.classList.toggle('collapsed');
+            const icon = document.getElementById('toggleIcon');
+            icon.innerHTML = document.body.classList.contains('collapsed') 
+                ? '<path d="M13 17l5-5-5-5M6 17l5-5-5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path>' 
+                : '<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path>';
+        }
+
+        function filterHistory() {
+            const input = document.getElementById('historySearch');
+            const filter = input.value.toLowerCase();
+            const table = document.getElementById('historyTable');
+            const tr = table.getElementsByTagName('tr');
+
+            for (let i = 1; i < tr.length; i++) {
+                let rowText = tr[i].innerText.toLowerCase();
+                tr[i].style.display = rowText.includes(filter) ? "" : "none";
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // TIMER LOGIC
+            const checkInStr = /*[[${checkInTime}]]*/ null;
+            const display = document.getElementById('activeTimer');
+            if (checkInStr && display) {
+                const startTime = new Date(checkInStr).getTime();
+                function updateClock() {
+                    const now = new Date().getTime();
+                    const diff = now - startTime;
+                    if (diff >= 0) {
+                        const h = Math.floor(diff / 3600000);
+                        const m = Math.floor((diff % 3600000) / 60000);
+                        const s = Math.floor((diff % 60000) / 1000);
+                        display.innerText = String(h).padStart(2, '0') + ":" + String(m).padStart(2, '0') + ":" + String(s).padStart(2, '0');
+                    }
+                }
+                setInterval(updateClock, 1000);
+                updateClock();
+            }
+
+            // POPUP NOTIFICATION
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('success') && urlParams.get('success') === 'action_completed') {
+                Swal.fire({
+                    title: 'Action Successful!',
+                    text: 'The leave request has been processed.',
+                    icon: 'success',
+                    timer: 2500,
+                    showConfirmButton: false,
+                    borderRadius: '24px',
+                    fontFamily: 'Inter'
+                });
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
+    </script>
+</body>
+</html>

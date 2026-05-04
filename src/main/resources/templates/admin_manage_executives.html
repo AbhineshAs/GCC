@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Executive Administration | GCC Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f3f4f9; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-primary: #1e293b; --text-secondary: #64748b;
+            --indigo-accent: #6366f1; --brd: #e2e8f0; --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --danger: #f43f5e; --success: #10b981; --warning: #f59e0b;
+            --sidebar-width: 280px; --sidebar-collapsed-width: 85px;
+        }
+
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+
+        /* SIDEBAR STRUCTURE */
+        .sidebar { 
+            width: var(--sidebar-width); background: var(--sidebar-bg); height: 100vh; 
+            padding: 2.5rem 1.2rem; position: fixed; border-right: 1px solid var(--brd); 
+            z-index: 100; display: flex; flex-direction: column;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.02);
+            box-sizing: border-box;
+        }
+        body.collapsed .sidebar { width: var(--sidebar-collapsed-width); padding: 2.5rem 0.8rem; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; padding: 0 10px; }
+        .logo-text { color: var(--indigo-accent); font-weight: 800; font-size: 1.4rem; letter-spacing: -1px; transition: opacity 0.3s; }
+        body.collapsed .logo-text { opacity: 0; pointer-events: none; width: 0; }
+        #toggleBtn { background: #f1f5ff; border: none; color: var(--indigo-accent); padding: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        #toggleBtn:hover { background: var(--indigo-accent); color: white; }
+
+        .nav-group { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; overflow-y: auto; }
+        .nav-item { padding: 14px 18px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 15px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; white-space: nowrap; transition: 0.3s; }
+        .nav-icon { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+        body.collapsed .nav-item { justify-content: center; padding: 14px 0; gap: 0; }
+        body.collapsed .nav-text { display: none; }
+        .nav-item:hover { background: #f8fafc; color: var(--indigo-accent); }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08); }
+
+		/* LOGOUT BOX - MATCHED TO ADMIN DASHBOARD */
+        .logout-box { padding-top: 20px; border-top: 1px solid var(--brd); margin-top: auto; padding-bottom: 10px; }
+        .logout-btn { color: var(--danger) !important; font-weight: 700; transition: 0.2s; text-decoration: none; display: flex; align-items: center; gap: 15px; padding: 14px 18px; border-radius: 14px; }
+        .logout-btn:hover { background: #fff1f2 !important; }
+		
+        /* CONTENT */
+        .main-wrapper { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 3.5rem; box-sizing: border-box; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        body.collapsed .main-wrapper { margin-left: var(--sidebar-collapsed-width); width: calc(100% - var(--sidebar-collapsed-width)); }
+        .page-header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; position: relative; }
+
+        /* SESSION INFO CARD */
+        .session-info-card { background: white; padding: 12px 20px; border-radius: 20px; border: 1px solid var(--brd); display: flex; align-items: center; gap: 20px; box-shadow: var(--shadow); }
+        .session-stat { display: flex; flex-direction: column; }
+        .session-label { font-size: 0.6rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .session-value { font-family: 'Inter', sans-serif; font-weight: 800; color: var(--text-primary); font-size: 0.95rem; }
+        .active-session-value { font-family: 'Inter', monospace; color: var(--indigo-accent); font-size: 1.1rem; }
+        .pulse-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse-green 2s infinite; }
+
+        /* ACTION CARDS */
+        .action-card { background: var(--card-bg); padding: 2.2rem; border-radius: 28px; border: 1px solid var(--brd); box-shadow: var(--shadow); margin-bottom: 30px; transition: 0.3s ease; }
+        .action-card:hover { transform: translateY(-5px); }
+        
+        label { font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px; display: block; }
+        input, select { width: 100%; padding: 13px; margin-bottom: 20px; border-radius: 12px; border: 1.5px solid var(--brd); background: #f8fafc; font-family: inherit; font-size: 0.9rem; box-sizing: border-box; }
+        input:focus, select:focus { border-color: var(--indigo-accent); outline: none; background: #fff; }
+        .btn-primary { background: var(--indigo-accent); color: white; border: none; padding: 14px 24px; border-radius: 12px; font-weight: 800; cursor: pointer; width: 100%; transition: 0.3s; }
+
+        /* TABLE */
+        .lead-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
+        .lead-table td { padding: 18px 15px; background: #fff; border-top: 1px solid var(--brd); border-bottom: 1px solid var(--brd); font-size: 0.95rem; vertical-align: middle; }
+        .lead-table td:first-child { border-left: 1px solid var(--brd); border-radius: 16px 0 0 16px; font-weight: 700; }
+        .lead-table td:last-child { border-right: 1px solid var(--brd); border-radius: 0 16px 16px 0; }
+
+        .btn-action { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--brd); background: white; transition: 0.2s; color: var(--text-secondary); cursor: pointer; text-decoration: none; }
+        .btn-edit:hover { color: var(--indigo-accent); border-color: var(--indigo-accent); background: #f1f5ff; }
+        .btn-delete:hover { color: var(--danger); border-color: var(--danger); background: #fff1f2; }
+
+        /* STATUS POPUP */
+        #statusPopup { position: fixed; top: 25px; right: -400px; background: white; border-left: 5px solid var(--success); padding: 18px 25px; border-radius: 16px; box-shadow: 0 15px 30px rgba(0,0,0,0.08); transition: 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55); z-index: 3000; display: flex; align-items: center; gap: 15px; }
+        #statusPopup.show { right: 25px; }
+
+        /* MODAL */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(8px); z-index: 1001; align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 3rem; border-radius: 32px; width: 100%; max-width: 450px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+    </style>
+</head>
+<body>
+
+    <div id="statusPopup">
+        <div id="pIcon" style="font-size: 1.4rem;">✅</div>
+        <div>
+            <b id="pTitle" style="color: var(--text-primary); font-size: 0.95rem;">Action Successful</b><br>
+            <span id="pMsg" style="font-size: 0.8rem; color: var(--text-secondary);">Executive directory updated.</span>
+        </div>
+    </div>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="logo-text">GCC SMART ADMIN</span>
+            <button id="toggleBtn" onclick="toggleSidebar()">
+                <svg id="toggleIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path></svg>
+            </button>
+        </div>
+        <div class="nav-group">
+            <a th:href="@{/admin/dashboard}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                <span class="nav-text">Overview</span>
+            </a>
+                        <a th:href="@{/admin/payroll}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path></svg>
+                <span class="nav-text">Payroll Mgmt</span>
+            </a>
+            
+            <a th:href="@{/admin/manage-managers}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle></svg>
+                <span class="nav-text">Manage Managers</span>
+            </a>
+            <a th:href="@{/admin/manage-hr}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle></svg>
+                <span class="nav-text">Manage HR</span>
+            </a>
+            <a th:href="@{/admin/manage-executives}" class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                <span class="nav-text">Manage Executives</span>
+            </a>
+            <a th:href="@{/admin/manager-leads}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5M2 17l10 5 10-5"></path></svg>
+                <span class="nav-text">Manager Leads</span>
+            </a>
+            <a th:href="@{/admin/leads/report}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span class="nav-text">Leads Export</span>
+            </a>
+            
+            <a th:href="@{/admin/tasks/assign}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span class="nav-text">Assign Tasks</span>
+            </a>
+            <a th:href="@{/admin/performance/managers}" class="nav-item">
+            	<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+    			<span class="nav-text">Manager Analytics</span>
+			</a>
+            <a th:href="@{/admin/attendance/list}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span class="nav-text">Attendance Logs</span>
+            </a>
+            <a th:href="@{/admin/sales}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                <span class="nav-text">Closed Sales</span>
+            </a>
+            <a th:href="@{/admin/finance/terminal}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path></svg>
+                <span class="nav-text">Finance Center</span>
+            </a>
+            <a th:href="@{/admin/leave/requests}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <span class="nav-text">Manager Leaves</span>
+                <span th:if="${pendingLeaves != null and !pendingLeaves.isEmpty()}" 
+      style="width: 8px; height: 8px; background: var(--danger); border-radius: 50%; margin-left: auto; animation: pulse-red 2s infinite;">
+</span>            </a>
+            <a th:href="@{/admin/profile}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <span class="nav-text">Profile</span>
+            </a>
+        </div>
+        <div class="logout-box">
+            <a th:href="@{/logout}" class="nav-item logout-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span class="nav-text">Logout System</span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <div class="page-header-container">
+            <header>
+                <h1 style="font-weight: 800; letter-spacing: -1.5px; margin: 0; font-size: 2.5rem;">Executive Administration</h1>
+                <p style="color: var(--text-secondary); margin-top: 5px; font-weight: 500;">Manage system executives and assign regional managers</p>
+            </header>
+
+            <div th:if="${checkInTime != null}" class="session-info-card">
+                <div class="session-stat">
+                    <span class="session-label">Login Time</span>
+                    <span class="session-value" th:text="${#temporals.format(T(java.time.LocalDateTime).parse(checkInTime), 'hh:mm a')}">---</span>
+                </div>
+                <div style="width: 1px; height: 30px; background: var(--brd);"></div>
+                <div class="session-stat">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="pulse-dot"></div>
+                        <span class="session-label">Active Session</span>
+                    </div>
+                    <span id="activeTimer" class="session-value active-session-value" style="color: var(--indigo-accent);">00:00:00</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px; align-items: start;">
+            <div class="action-card">
+                <h3 style="margin:0 0 20px 0; font-weight: 800;">Register Executive</h3>
+                <form th:action="@{/admin/add-executive}" method="post">
+                    <label>Full Name</label><input type="text" name="name" required placeholder="John Doe">
+                    <label>Email Address</label><input type="email" name="email" required placeholder="exec@company.com">
+                    <label>Password</label><input type="password" name="password" required>
+                    <label>Assign Manager</label>
+                    <select name="managerId" required>
+                        <option value="" disabled selected>Select a Manager</option>
+                        <option th:each="m : ${managers}" th:value="${m.id}" th:text="${m.name}"></option>
+                    </select>
+                    <button type="submit" class="btn-primary">Create Account</button>
+                </form>
+            </div>
+
+            <div class="action-card">
+                <h3 style="margin:0 0 20px 0; font-weight: 800;">System Executives</h3>
+                <div style="overflow-x: auto;">
+                    <table class="lead-table">
+                        <thead><tr><th>Name</th><th>Email</th><th>Assigned Manager</th><th style="text-align:right;">Actions</th></tr></thead>
+                        <tbody>
+                            <tr th:each="e : ${executives}">
+                                <td th:text="${e.name}"></td>
+                                <td th:text="${e.email}" style="color:var(--text-secondary);"></td>
+                                <td><span th:text="${e.manager != null ? e.manager.name : 'Unassigned'}" style="background:#f1f5ff; color:var(--indigo-accent); padding:5px 10px; border-radius:8px; font-weight:700; font-size:0.75rem;"></span></td>
+                                <td style="text-align:right;">
+                                    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                        <button class="btn-action btn-edit" th:onclick="openEditModal([[${e.id}]], [[${e.name}]], [[${e.email}]], [[${e.manager != null ? e.manager.id : ''}]])">
+                                            <svg class="nav-icon" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                        </button>
+                                        <a th:href="@{/admin/delete-exec/{id}(id=${e.id})}" class="btn-action btn-delete" onclick="return confirm('Delete permanently?')">
+                                            <svg class="nav-icon" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0; font-weight: 800;">Edit Executive</h3>
+            <form th:action="@{/admin/update-executive}" method="post">
+                <input type="hidden" id="editId" name="id">
+                <label>Name</label><input type="text" id="editName" name="name" required>
+                <label>Email</label><input type="email" id="editEmail" name="email" required>
+                <label>Assign Manager</label>
+                <select id="editManagerId" name="managerId" required>
+                    <option th:each="m : ${managers}" th:value="${m.id}" th:text="${m.name}"></option>
+                </select>
+                <button type="submit" class="btn-primary">Update Profile</button>
+                <button type="button" onclick="closeModal()" style="background:none; border:none; width:100%; margin-top:1.5rem; cursor:pointer; color:var(--text-secondary); font-weight:700;">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        function toggleSidebar() { 
+            document.body.classList.toggle('collapsed');
+            const icon = document.getElementById('toggleIcon');
+            icon.innerHTML = document.body.classList.contains('collapsed') 
+                ? '<path d="M13 17l5-5-5-5M6 17l5-5-5-5"></path>' 
+                : '<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path>';
+        }
+
+        function openEditModal(id, name, email, managerId) {
+            document.getElementById('editId').value = id;
+            document.getElementById('editName').value = name;
+            document.getElementById('editEmail').value = email;
+            document.getElementById('editManagerId').value = managerId;
+            document.getElementById('editModal').style.display = 'flex';
+        }
+        function closeModal() { document.getElementById('editModal').style.display = 'none'; }
+
+        window.onload = () => {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('success') || params.get('error') === 'email_exists') {
+                const popup = document.getElementById('statusPopup');
+                const title = document.getElementById('pTitle');
+                const msg = document.getElementById('pMsg');
+                const icon = document.getElementById('pIcon');
+
+                if (params.get('success') === 'deleted') {
+                    title.innerText = "Account Removed";
+                    msg.innerText = "The executive account has been deleted.";
+                    popup.style.borderLeftColor = "var(--danger)";
+                    icon.innerText = "🗑️";
+                } else if (params.get('success') === 'updated') {
+                    title.innerText = "Profile Updated";
+                    msg.innerText = "Executive info saved successfully.";
+                } else if (params.get('error') === 'email_exists') {
+                    title.innerText = "Action Blocked";
+                    msg.innerText = "This email is already in use.";
+                    popup.style.borderLeftColor = "var(--danger)";
+                    icon.innerText = "⚠️";
+                }
+
+                popup.classList.add('show');
+                setTimeout(() => popup.classList.remove('show'), 4000);
+            }
+            window.history.replaceState({}, document.title, window.location.pathname);
+        };
+
+        // Timer Logic
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkInTimeStr = /*[[${checkInTime}]]*/ null;
+            const timerElement = document.getElementById('activeTimer');
+            if (!checkInTimeStr || !timerElement) return;
+
+            const startTime = new Date(checkInTimeStr).getTime();
+            function updateTimer() {
+                const now = new Date().getTime();
+                const diff = now - startTime;
+                if (diff >= 0) {
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    const s = Math.floor((diff % 60000) / 1000);
+                    timerElement.innerText = String(h).padStart(2, '0') + ":" + String(m).padStart(2, '0') + ":" + String(s).padStart(2, '0');
+                }
+            }
+            setInterval(updateTimer, 1000);
+            updateTimer();
+        });
+
+        window.onclick = (e) => { if(e.target == document.getElementById('editModal')) closeModal(); }
+    </script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Team Activity Ledger | GCC Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f3f4f9; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-primary: #1e293b; --text-secondary: #64748b;
+            --indigo-accent: #6366f1; --brd: #e2e8f0; --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --success: #10b981; --danger: #f43f5e; --warning: #f59e0b;
+            --sidebar-width: 280px;
+        }
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+        
+        .sidebar { width: var(--sidebar-width); background: var(--sidebar-bg); height: 100vh; padding: 2.5rem 1.5rem; position: fixed; border-right: 1px solid var(--brd); display: flex; flex-direction: column; box-sizing: border-box; }
+        .nav-item { padding: 12px 16px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 12px; border-radius: 12px; font-weight: 600; font-size: 0.9rem; transition: 0.2s; margin-bottom: 4px; }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); }
+
+        .main-wrapper { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 3rem 4rem; box-sizing: border-box; }
+        
+        .summary-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 35px; }
+        .mini-card { background: white; padding: 20px; border-radius: 20px; border: 1px solid var(--brd); box-shadow: var(--shadow); }
+        .mini-label { font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+        .mini-value { font-size: 1.5rem; font-weight: 800; display: block; margin-top: 5px; color: var(--text-primary); }
+
+        .attendance-table { width: 100%; border-collapse: separate; border-spacing: 0 12px; }
+        .attendance-table th { text-align: left; padding: 0 20px; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 800; }
+        .attendance-table td { padding: 18px 20px; background: #ffffff; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        .attendance-table tr td:first-child { border-left: 1px solid #f1f5f9; border-radius: 20px 0 0 20px; }
+        .attendance-table tr td:last-child { border-right: 1px solid #f1f5f9; border-radius: 0 20px 20px 0; }
+
+        .user-cell { display: flex; align-items: center; gap: 15px; }
+        .avatar-box { position: relative; }
+        .avatar { width: 42px; height: 42px; background: #f1f5ff; color: var(--indigo-accent); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; border: 1px solid #e0e7ff; }
+        
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid white; position: absolute; bottom: -2px; right: -2px; }
+        .dot-online { background: var(--success); animation: pulse-green 2s infinite; }
+        .dot-offline { background: var(--text-secondary); opacity: 0.5; }
+
+        .user-meta b { display: block; font-size: 1rem; color: #1e293b; line-height: 1.2; }
+        .user-meta span { font-size: 0.65rem; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; }
+        .active-text { color: var(--success) !important; font-weight: 900 !important; }
+
+        .time-label { font-family: 'Inter', monospace; font-weight: 800; color: var(--success); font-size: 0.95rem; }
+        .duration-text { display: block; font-size: 0.7rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; }
+        .status-pill { font-weight: 800; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; padding: 5px 12px; background: #f8fafc; border-radius: 8px; color: var(--text-secondary); }
+        .pill-present { color: var(--success); background: #ecfdf5; }
+
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <span style="color: var(--indigo-accent); font-weight: 900; font-size: 1.5rem; letter-spacing: -1.5px; margin-bottom: 3.5rem; display: block; padding-left: 10px;">GCC SMART.</span>
+        <div class="nav-group">
+            <a th:href="@{/hr/dashboard}" class="nav-item">Staff Registry</a>
+            <a th:href="@{/hr/attendance}" class="nav-item active">Attendance Ledger</a>
+            <a th:href="@{/hr/add-executive}" class="nav-item">Add Executive</a>
+            <a th:href="@{/hr/payroll}" class="nav-item">Payroll Center</a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <header style="margin-bottom: 35px;">
+            <h1 style="font-weight: 900; letter-spacing: -2.5px; font-size: 2.8rem; margin:0;">Daily Activity (Live)</h1>
+            <p style="color: var(--text-secondary); margin-top: 5px; font-weight: 600;" th:text="'Managing Team Executives under ' + ${managerName}"></p>
+        </header>
+
+        <div class="summary-bar">
+            <div class="mini-card"><span class="mini-label">Team Size</span><span class="mini-value" th:text="${stats.total}">0</span></div>
+            <div class="mini-card" style="border-left: 5px solid var(--success);"><span class="mini-label">Present Today</span><span class="mini-value" th:text="${stats.present}">0</span></div>
+            <div class="mini-card" style="border-left: 5px solid var(--danger);"><span class="mini-label">Absent</span><span class="mini-value" th:text="${stats.absent}">0</span></div>
+            <div class="mini-card"><span class="mini-label">System Date</span><span class="mini-value" style="font-size: 1.1rem; margin-top: 10px;" th:text="${#temporals.format(todayDate, 'yyyy-MM-dd')}"></span></div>
+        </div>
+
+        <table class="attendance-table">
+            <thead>
+                <tr>
+                    <th>Employee Identity</th>
+                    <th>Date</th>
+                    <th>Login Time</th>
+                    <th>Logout Time & Duration</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="log : ${logs}">
+                    <td>
+                        <div class="user-cell">
+                            <div class="avatar-box">
+                                <div class="avatar" th:text="${log.user != null ? #strings.substring(log.user.name, 0, 1) : '?'}"></div>
+                                <span th:class="${log.checkOut == null ? 'status-dot dot-online' : 'status-dot dot-offline'}"></span>
+                            </div>
+                            <div class="user-meta">
+                                <b th:text="${log.user?.name ?: 'Unknown'}"></b>
+                                <span th:if="${log.checkOut == null}" class="active-text">● ACTIVE NOW</span>
+                                <span th:if="${log.checkOut != null}">Completed</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="font-weight: 700; color: var(--text-secondary);" th:text="${log.date}"></td>
+                    <td>
+                        <span class="time-label" th:text="${#temporals.format(log.checkIn, 'hh:mm a')}"></span>
+                    </td>
+                    <td>
+                        <div th:if="${log.checkOut != null}">
+                            <span class="time-label" style="color: var(--text-primary);" th:text="${#temporals.format(log.checkOut, 'hh:mm a')}"></span>
+                            <span class="duration-text" th:text="${log.duration != null ? log.duration : 'Session Ended'}"></span>
+                        </div>
+                        <span th:if="${log.checkOut == null}" style="color: var(--warning); font-weight: 800; font-size: 0.85rem;">Session Running...</span>
+                    </td>
+                    <td>
+                        <span class="status-pill pill-present" th:text="${log.status}">PRESENT</span>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(logs)}">
+                    <td colspan="5" style="text-align:center; padding:50px; color:var(--text-secondary); font-weight:700;">No activity recorded for your team today.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

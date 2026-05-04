@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Sales Pipeline | GCC Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-main: #f3f4f9; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-primary: #1e293b; --text-secondary: #64748b;
+            --indigo-accent: #6366f1; --brd: #e2e8f0; --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --danger: #f43f5e; --sidebar-width: 280px; --sidebar-collapsed-width: 85px;
+            --status-new: #3b82f6; --status-interested: #10b981; --status-contacted: #f59e0b;
+        }
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+
+       /* SIDEBAR STRUCTURE */
+        .sidebar { 
+            width: var(--sidebar-width); background: var(--sidebar-bg); height: 100vh; 
+            padding: 2rem 1.2rem; position: fixed; border-right: 1px solid var(--brd); 
+            z-index: 100; display: flex; flex-direction: column;
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.02); box-sizing: border-box;
+        }
+        body.collapsed .sidebar { width: var(--sidebar-collapsed-width); padding: 2rem 0.8rem; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; padding: 0 10px; }
+        .logo-text { color: var(--indigo-accent); font-weight: 800; font-size: 1.4rem; letter-spacing: -1px; transition: opacity 0.3s; }
+        body.collapsed .logo-text { opacity: 0; pointer-events: none; width: 0; }
+        #toggleBtn { background: #f1f5ff; border: none; color: var(--indigo-accent); padding: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+
+        .nav-group { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; overflow-y: auto; }
+        .nav-item { padding: 14px 18px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 15px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; white-space: nowrap; transition: 0.3s; }
+        .nav-icon { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+        body.collapsed .nav-text { display: none; }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); }
+        
+        .logout-box { padding-top: 20px; border-top: 1px solid var(--brd); margin-top: auto; padding-bottom: 10px; }
+        .logout-link { color: var(--danger) !important; font-weight: 700; display: flex; align-items: center; gap: 15px; text-decoration: none; padding: 12px 16px; border-radius: 12px; transition: 0.2s; font-size: 0.95rem; }
+        .logout-link:hover { background: #fff1f2; }
+
+        body.collapsed .logo-text { opacity: 0; pointer-events: none; }
+        
+        #toggleBtn { background: #f1f5ff; border: none; color: var(--indigo-accent); padding: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        
+        .nav-group { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; }
+        .nav-item { padding: 14px 18px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 15px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; white-space: nowrap; transition: 0.3s; }
+        .nav-icon { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+        
+        body.collapsed .nav-item { justify-content: center; padding: 14px 0; gap: 0; }
+        body.collapsed .nav-text { display: none; }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); }
+
+        .logout-box { padding-top: 20px; border-top: 1px solid var(--brd); margin-top: auto; }
+        .user-info-sidebar { padding: 0 18px 15px 18px; font-size: 0.8rem; font-weight: 700; color: var(--text-primary); transition: 0.3s; }
+        body.collapsed .user-info-sidebar { display: none; }
+
+        /* MAIN CONTENT */
+        .main-wrapper { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 3.5rem; box-sizing: border-box; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        body.collapsed .main-wrapper { margin-left: var(--sidebar-collapsed-width); width: calc(100% - var(--sidebar-collapsed-width)); }
+
+        /* Preserving existing Pipeline card/grid styles */
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 30px; align-items: start; }
+        .pipeline-card { background: var(--card-bg); padding: 2rem; border-radius: 28px; border: 1px solid var(--brd); box-shadow: var(--shadow); }
+        .pipeline-card h3 { margin: 0 0 1.5rem 0; font-size: 1rem; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 10px; }
+        .search-container { position: relative; margin-bottom: 1.5rem; }
+        .search-input { width: 100%; padding: 12px 15px 12px 40px; background: #f8fafc; border: 1.5px solid var(--brd); border-radius: 14px; font-family: inherit; font-size: 0.9rem; transition: 0.3s; box-sizing: border-box; }
+        .search-input:focus { outline: none; border-color: var(--indigo-accent); background: #fff; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.05); }
+        .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); width: 18px; height: 18px; }
+        .stage-details-container { max-height: 520px; overflow-y: auto; padding-right: 5px; }
+        .stage-details-container::-webkit-scrollbar { width: 4px; }
+        .stage-details-container::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .lead-row { display: flex; align-items: center; padding: 1.2rem; background: #ffffff; border: 1px solid #f1f5f9; border-radius: 20px; margin-bottom: 12px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .lead-row:hover { transform: translateY(-2px); border-color: var(--indigo-accent); box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.1); }
+        .lead-avatar { width: 42px; height: 42px; border-radius: 12px; background: #f1f5ff; color: var(--indigo-accent); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.9rem; flex-shrink: 0; }
+        .lead-info { flex-grow: 1; margin-left: 15px; }
+        .lead-info b { font-size: 0.95rem; color: var(--text-primary); display: block; letter-spacing: -0.3px; }
+        .lead-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+        .lead-meta small { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+        .status-badge { padding: 6px 14px; border-radius: 10px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .bg-new { background: #eff6ff; color: var(--status-new); }
+        .bg-interested { background: #ecfdf5; color: var(--status-interested); }
+        .bg-contacted { background: #fffbeb; color: var(--status-contacted); }
+        .bg-default { background: #f8fafc; color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="logo-text">GCC SMART</span>
+            <button id="toggleBtn" onclick="toggleSidebar()">
+                <svg id="toggleIcon" class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path></svg>
+            </button>
+        </div>
+        <div class="nav-group">
+           <a th:href="@{/manager/dashboard}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                <span class="nav-text">Overview</span>
+            </a>
+            <a th:href="@{/manager/my-leads}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"/></svg>
+                <span class="nav-text">My Leads</span>
+            </a>
+             <a th:href="@{/manager/tasks}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                <span class="nav-text">Tasks</span>
+            </a>
+            <a th:href="@{/manager/assign-hr-task}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span class="nav-text">Assign HR Tasks</span>
+            </a>
+            <a th:href="@{/manager/pipeline}" class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                <span class="nav-text">Pipeline</span>
+            </a>
+            <a th:href="@{/manager/lead-capture}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"/></svg>
+                <span class="nav-text">Team Leads</span>
+            </a>
+            <a th:href="@{/manager/executives}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path></svg>
+                <span class="nav-text">Manage Team</span>
+            </a>
+            <a th:href="@{/manager/closed-sales}" class="nav-item" th:classappend="${currentPage == 'closed' ? 'active' : ''}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span class="nav-text">Team Sales</span>
+    </a>
+    
+            <a th:href="@{/manager/performance}" class="nav-item">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+    <span class="nav-text">Performance</span>
+</a>
+ <a th:href="@{/manager/leave/requests}" class="nav-item">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+    </svg>
+    <span class="nav-text">Team Leaves</span>
+    
+    
+</a>
+<a th:href="@{/leave/apply}" class="nav-item">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+    </svg>
+    <span class="nav-text">Apply My Leave</span>
+</a>
+            <a th:href="@{/manager/profile}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span class="nav-text">Settings</span>
+            </a>
+
+        </div>
+        <div class="logout-box">
+            <a th:href="@{/logout}" class="logout-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span class="nav-text">Logout System</span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <header>
+            <h1 style="font-weight: 800; font-size: 2.2rem; margin: 0; letter-spacing: -1.5px;">Sales Pipeline</h1>
+            <p style="color: var(--text-secondary); font-weight: 600; margin-top: 5px; font-size: 0.85rem; letter-spacing: 0.5px; text-transform: uppercase;">
+                Funnel Tracking &bull; <span th:text="${session.user.name}" style="color: var(--indigo-accent);"></span>
+            </p>
+        </header>
+
+        <div class="dashboard-grid" style="margin-top: 3rem;">
+            <div class="pipeline-card">
+                <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 20V10M12 20V4M6 20v-6"></path></svg>
+                    Funnel Velocity
+                </h3>
+                <div style="height: 340px;">
+                    <canvas id="pipelineChart"></canvas>
+                </div>
+            </div>
+
+            <div class="pipeline-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+                    <h3>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path></svg>
+                        Stage Details
+                    </h3>
+                    <span id="recordCount" style="font-size: 0.7rem; font-weight: 800; color: var(--indigo-accent); background: #f1f5ff; padding: 4px 10px; border-radius: 20px;" 
+                          th:text="${leads.size() + ' Records'}"></span>
+                </div>
+
+                <div class="search-container">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
+                    <input type="text" id="pipelineSearch" class="search-input" placeholder="Search by lead name or executive..." onkeyup="filterLeads()">
+                </div>
+
+                <div class="stage-details-container" id="leadsList">
+                    <div th:each="l : ${leads}" class="lead-row" th:data-name="${l.customerName.toLowerCase()}" th:data-owner="${l.user.name.toLowerCase()}">
+                        <div class="lead-avatar" th:text="${#strings.substring(l.customerName, 0, 1)}">L</div>
+                        <div class="lead-info">
+                            <b th:text="${l.customerName}">Lead Name</b>
+                            <div class="lead-meta">
+                                <small th:text="${l.user.name}" style="color: var(--indigo-accent);">Owner</small>
+                                <span style="width: 3px; height: 3px; background: #cbd5e1; border-radius: 50%;"></span>
+                                <small th:text="${l.source}" style="color: var(--text-secondary);"></small>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <span th:text="${l.status}" 
+                                  th:class="'status-badge ' + (${l.status == 'New' ? 'bg-new' : (l.status == 'Interested to Buy' ? 'bg-interested' : (l.status == 'Contacted' ? 'bg-contacted' : 'bg-default'))})">
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div id="noResults" style="display: none; text-align: center; padding: 3rem 0;">
+                        <p style="color: var(--text-secondary); font-weight: 600;">No matching leads found.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        function toggleSidebar() { 
+            document.body.classList.toggle('collapsed'); 
+            const icon = document.getElementById('toggleIcon');
+            icon.innerHTML = document.body.classList.contains('collapsed') 
+                ? '<path d="M13 17l5-5-5-5M6 17l5-5-5-5"></path>' 
+                : '<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path>';
+        }
+
+        // Preserve all existing functionality (Chart/Search)
+        function filterLeads() {
+            const query = document.getElementById('pipelineSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('.lead-row');
+            const noResults = document.getElementById('noResults');
+            let visibleCount = 0;
+            rows.forEach(row => {
+                if (row.getAttribute('data-name').includes(query) || row.getAttribute('data-owner').includes(query)) {
+                    row.style.display = 'flex';
+                    visibleCount++;
+                } else { row.style.display = 'none'; }
+            });
+            noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+            document.getElementById('recordCount').innerText = visibleCount + ' Records';
+        }
+
+        const ctx = document.getElementById('pipelineChart').getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, '#6366f1');
+        gradient.addColorStop(1, '#a5b4fc');
+
+        new Chart(ctx, { 
+            type: 'bar', 
+            data: { 
+                labels: /*[[${pipelineLabels}]]*/ [], 
+                datasets: [{ data: /*[[${pipelineData}]]*/ [], backgroundColor: gradient, borderRadius: 10, barThickness: 32 }] 
+            }, 
+            options: { 
+                maintainAspectRatio: false, 
+                scales: {
+                    y: { beginAtZero: true, grid: { borderDash: [5, 5], color: '#f1f5ff' }, ticks: { color: '#94a3b8', font: { size: 11, weight: '600' } } },
+                    x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 12, weight: '700' } } }
+                },
+                plugins: { legend: { display: false } } 
+            } 
+        });
+    </script>
+</body>
+</html>

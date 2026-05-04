@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Global Sales Archive | GCC Smart Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root {
+            --bg-main: #f3f4f9; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-primary: #2d3748; --text-secondary: #718096;
+            --indigo-accent: #6366f1; --brd: #edf2f7; --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --success: #10b981; --warning: #f59e0b; --danger: #f43f5e;
+            --sidebar-width: 280px; --sidebar-collapsed-width: 85px;
+        }
+
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+
+         /* SIDEBAR STRUCTURE */
+        .sidebar { 
+            width: var(--sidebar-width); background: var(--sidebar-bg); height: 100vh; 
+            padding: 2.5rem 1.2rem; position: fixed; border-right: 1px solid var(--brd); 
+            z-index: 100; display: flex; flex-direction: column;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.02);
+            box-sizing: border-box;
+        }
+        body.collapsed .sidebar { width: var(--sidebar-collapsed-width); padding: 2.5rem 0.8rem; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; padding: 0 10px; }
+        .logo-text { color: var(--indigo-accent); font-weight: 800; font-size: 1.4rem; letter-spacing: -1px; transition: opacity 0.3s; }
+        body.collapsed .logo-text { opacity: 0; pointer-events: none; width: 0; }
+        #toggleBtn { background: #f1f5ff; border: none; color: var(--indigo-accent); padding: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        #toggleBtn:hover { background: var(--indigo-accent); color: white; }
+
+        .nav-group { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; overflow-y: auto; }
+        .nav-item { padding: 14px 18px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 15px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; white-space: nowrap; transition: 0.3s; }
+        .nav-icon { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+        body.collapsed .nav-item { justify-content: center; padding: 14px 0; gap: 0; }
+        body.collapsed .nav-text { display: none; }
+        .nav-item:hover { background: #f8fafc; color: var(--indigo-accent); }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08); }
+
+        .logout-box { padding-top: 20px; border-top: 1px solid var(--brd); margin-top: auto; padding-bottom: 10px; }
+        .logout-btn { color: var(--danger) !important; font-weight: 700; transition: 0.2s; text-decoration: none; display: flex; align-items: center; gap: 15px; padding: 14px 18px; border-radius: 14px; }
+        .logout-btn:hover { background: #fff1f2 !important; }
+
+        .main-wrapper { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 3.5rem; box-sizing: border-box; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        body.collapsed .main-wrapper { margin-left: var(--sidebar-collapsed-width); width: calc(100% - var(--sidebar-collapsed-width)); }
+
+        .page-header { margin-bottom: 2.5rem; }
+        .page-header h1 { font-weight: 800; letter-spacing: -1.5px; margin: 0; }
+        .page-header p { color: var(--text-secondary); margin-top: 5px; font-weight: 500; }
+
+        .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; margin-bottom: 35px; }
+        .kpi-card { background: var(--card-bg); padding: 25px; border-radius: 24px; border: 1px solid var(--brd); box-shadow: var(--shadow); border-left: 6px solid var(--indigo-accent); }
+        .kpi-card h3 { margin: 0; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .kpi-card .value { font-size: 2rem; font-weight: 800; margin-top: 10px; display: block; }
+
+        /* SEARCH & FILTER BAR */
+        .search-filter-bar { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 20px; margin-bottom: 30px; background: #f8fafc; padding: 20px; border-radius: 20px; border: 1px solid var(--brd); }
+        .input-group { display: flex; flex-direction: column; gap: 8px; }
+        .input-group.flex-1 { flex: 1; min-width: 200px; }
+        label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; }
+        input { padding: 12px 15px; border-radius: 12px; border: 1.5px solid var(--brd); background: #ffffff; font-family: inherit; font-weight: 600; outline: none; transition: 0.3s; }
+        
+        .btn-action { background: var(--indigo-accent); color: white; border: none; padding: 12px 20px; border-radius: 12px; font-weight: 800; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 8px; font-size: 0.8rem; }
+        .btn-action:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(99, 102, 241, 0.2); }
+        .btn-pdf { background: var(--danger); }
+
+        .action-card { background: var(--card-bg); padding: 2.2rem; border-radius: 28px; border: 1px solid var(--brd); box-shadow: var(--shadow); }
+        
+        /* SALES TABLE SPECIFIC */
+        .sales-table { width: 100%; border-collapse: separate; border-spacing: 0 12px; margin-top: -12px; }
+        .sales-table th { text-align: left; padding: 0 20px; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+        .sales-table td { padding: 20px; background: #ffffff; border-top: 1px solid var(--brd); border-bottom: 1px solid var(--brd); vertical-align: middle; }
+        .sales-table td:first-child { border-left: 1px solid var(--brd); border-radius: 16px 0 0 16px; }
+        .sales-table td:last-child { border-right: 1px solid var(--brd); border-radius: 0 16px 16px 0; }
+
+        .manager-badge { 
+            display: inline-flex; align-items: center; gap: 8px; 
+            padding: 6px 12px; background: #f1f5ff; color: var(--indigo-accent); 
+            border-radius: 10px; font-weight: 700; font-size: 0.85rem;
+        }
+        .amount-text { font-weight: 800; color: var(--success); font-size: 1.1rem; }
+        .date-text { color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; }
+        .filter-status { font-size: 0.75rem; font-weight: 700; color: var(--indigo-accent); background: #f1f5ff; padding: 6px 14px; border-radius: 20px; margin-bottom: 15px; display: inline-block; }
+        
+        .btn-row-dl { background: transparent; border: 1.5px solid var(--brd); color: var(--text-secondary); padding: 6px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .btn-row-dl:hover { border-color: var(--indigo-accent); color: var(--indigo-accent); background: #f1f5ff; }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="logo-text">GCC SMART ADMIN</span>
+            <button id="toggleBtn" onclick="toggleSidebar()">
+                <svg class="nav-icon" id="toggleIcon" viewBox="0 0 24 24"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path></svg>
+            </button>
+        </div>
+        
+        <div class="nav-group">
+            <a th:href="@{/admin/dashboard}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                <span class="nav-text">Overview</span>
+            </a>
+            <a th:href="@{/admin/payroll}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path></svg>
+                <span class="nav-text">Payroll Mgmt</span>
+            </a>
+            <a th:href="@{/admin/manage-managers}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
+                <span class="nav-text">Manage Managers</span>
+            </a>
+            <a th:href="@{/admin/manage-hr}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle></svg>
+                <span class="nav-text">Manage HR</span>
+            </a>
+            <a th:href="@{/admin/manage-executives}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                <span class="nav-text">Manage Executives</span>
+            </a>
+             <a th:href="@{/admin/manager-leads}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5M2 17l10 5 10-5"></path></svg>
+                <span class="nav-text">Manager Leads</span>
+            </a>
+            <a th:href="@{/admin/leads/report}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span class="nav-text">Leads Export</span>
+            </a>
+            
+            <a th:href="@{/admin/tasks/assign}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span class="nav-text">Assign Tasks</span>
+            </a>
+            <a th:href="@{/admin/performance/managers}" class="nav-item">
+            	<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+    			<span class="nav-text">Manager Analytics</span>
+			</a>
+            <a th:href="@{/admin/attendance/list}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span class="nav-text">Attendance Logs</span>
+            </a>
+            <a th:href="@{/admin/sales}" class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5M2 17l10 5 10-5"></path></svg>
+                <span class="nav-text">Closed Sales</span>
+            </a>
+            <a th:href="@{/admin/finance/terminal}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path></svg>
+                <span class="nav-text">Finance Center</span>
+            </a>
+            <a th:href="@{/admin/leave/requests}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <span class="nav-text">Manager Leaves</span>
+                <span th:if="${pendingLeaves != null and !pendingLeaves.isEmpty()}" 
+                      style="width: 8px; height: 8px; background: var(--danger); border-radius: 50%; margin-left: auto; animation: pulse-red 2s infinite;"></span>
+            </a>
+            <a th:href="@{/admin/profile}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <span class="nav-text">Profile</span>
+            </a>
+        </div>
+
+        <div class="logout-box">
+            <a th:href="@{/logout}" class="nav-item logout-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span class="nav-text">Logout System</span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <header class="page-header">
+            <h1>Global Sales Archive</h1>
+            <p>Monitor high-value closures across all management departments</p>
+        </header>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <h3>Total Global Revenue</h3>
+                <span class="value" id="globalRevenue">₹ 0.00</span>
+            </div>
+            <div class="kpi-card" style="border-left-color: var(--success);">
+                <h3>Verified Closures</h3>
+                <span class="value" id="closureCount" th:text="${leads.size()}">0</span>
+            </div>
+            <div class="kpi-card" style="border-left-color: var(--warning);">
+                <h3>Active Teams</h3>
+                <span class="value" th:text="${managerCount}">0</span>
+            </div>
+        </div>
+
+        <div class="action-card">
+            <div class="search-filter-bar">
+                <div class="input-group flex-1">
+                    <label>Search Sales</label>
+                    <input type="text" id="salesSearch" onkeyup="applySalesFilters()" placeholder="Customer or Employee name...">
+                </div>
+                <div class="input-group">
+                    <label>From Date</label>
+                    <input type="date" id="dateFrom" onchange="applySalesFilters()">
+                </div>
+                <div class="input-group">
+                    <label>To Date</label>
+                    <input type="date" id="dateTo" onchange="applySalesFilters()">
+                </div>
+                <button onclick="downloadSalesPDF()" class="btn-action btn-pdf">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Download PDF
+                </button>
+            </div>
+
+            <span class="filter-status" id="resultsCounter">Total Verified Sales</span>
+
+            <table class="sales-table" id="salesTable">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Team Manager</th>
+                        <th>Closure Details</th>
+                        <th style="text-align: right;">Amount</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="l : ${leads}" class="sales-row">
+                        <td>
+                            <b class="cell-customer" th:text="${l.customerName}" style="font-size: 1rem; display: block;"></b>
+                            <span class="date-text cell-date" 
+                                  th:attr="data-date=${#strings.contains(l.notes, 'Date: ') ? #strings.substringBefore(#strings.substringAfter(l.notes, 'Date: '), ' |') : 'N/A'}"
+                                  th:text="${#strings.contains(l.notes, 'Date: ') ? #strings.substringBefore(#strings.substringAfter(l.notes, 'Date: '), ' |') : 'N/A'}"></span>
+                        </td>
+                        <td>
+                            <div class="manager-badge">
+                                <span class="cell-manager" th:text="${l.user.manager != null ? l.user.manager.name : 'Direct'}">Manager</span>
+                            </div>
+                            <span class="cell-exec" style="display: block; font-size: 0.7rem; margin-top: 4px; color: var(--text-secondary); font-weight: 600;" th:text="'' + ${l.user.name}"></span>
+                        </td>
+                        <td class="cell-remarks" th:text="${#strings.contains(l.notes, 'Remarks: ') ? #strings.substringAfter(l.notes, 'Remarks: ') : 'Verified'}"></td>
+                        <td style="text-align: right;">
+                            <span class="amount-text row-amount" 
+                                  th:text="${#strings.contains(l.notes, '₹') ? #strings.substringBefore(#strings.substringAfter(l.notes, '₹'), ' |') : '0'}">
+                            </span>
+                        </td>
+                        <td style="text-align: center;">
+                            <button class="btn-row-dl" onclick="downloadIndividualPDF(this)" title="Download Sale Receipt">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script th:inline="none">
+        function toggleSidebar() {
+            document.body.classList.toggle('collapsed');
+            const icon = document.getElementById('toggleIcon');
+            if(icon) {
+                icon.innerHTML = document.body.classList.contains('collapsed') 
+                    ? '<path d="M13 17l5-5-5-5M6 17l5-5-5-5"></path>' 
+                    : '<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path>';
+            }
+        }
+
+        function applySalesFilters() {
+            const search = document.getElementById('salesSearch').value.toLowerCase();
+            const from = document.getElementById('dateFrom').value;
+            const to = document.getElementById('dateTo').value;
+            const rows = document.querySelectorAll('.sales-row');
+            
+            let totalRevenue = 0;
+            let count = 0;
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                const dateStr = row.querySelector('.cell-date').getAttribute('data-date');
+                const rowDate = (dateStr && dateStr !== 'N/A') ? new Date(dateStr).setHours(0,0,0,0) : null;
+
+                let match = text.includes(search);
+                if (from && rowDate && rowDate < new Date(from).setHours(0,0,0,0)) match = false;
+                if (to && rowDate && rowDate > new Date(to).setHours(0,0,0,0)) match = false;
+
+                row.style.display = match ? '' : 'none';
+                
+                if (match) {
+                    const amt = parseFloat(row.querySelector('.row-amount').innerText.replace(/[^0-9.]/g, ''));
+                    if (!isNaN(amt)) totalRevenue += amt;
+                    count++;
+                }
+            });
+
+            document.getElementById('globalRevenue').innerText = '₹ ' + totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+            document.getElementById('closureCount').innerText = count;
+            document.getElementById('resultsCounter').innerText = `Filtered: ${count} Verified Sales`;
+        }
+
+        function downloadSalesPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("GCC Smart - Global Sales Archive Report", 14, 15);
+            doc.setFontSize(10);
+            doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 22);
+            
+            const rows = [];
+            document.querySelectorAll('.sales-row').forEach(r => {
+                if(r.style.display !== 'none') {
+                    rows.push([
+                        r.querySelector('.cell-customer').innerText,
+                        r.querySelector('.cell-date').innerText,
+                        r.querySelector('.cell-manager').innerText,
+                        r.querySelector('.cell-exec').innerText,
+                        r.querySelector('.row-amount').innerText
+                    ]);
+                }
+            });
+
+            doc.autoTable({
+                startY: 30,
+                head: [['Customer', 'Date', 'Manager', 'Lead Owner', 'Amount']],
+                body: rows,
+                theme: 'grid',
+                headStyles: { fillColor: [99, 102, 241] }
+            });
+            doc.save("Global_Sales_Report.pdf");
+        }
+
+        function downloadIndividualPDF(btn) {
+            const row = btn.closest('tr');
+            const customer = row.querySelector('.cell-customer').innerText;
+            const date = row.querySelector('.cell-date').innerText;
+            const manager = row.querySelector('.cell-manager').innerText;
+            const executive = row.querySelector('.cell-exec').innerText;
+            const amount = row.querySelector('.row-amount').innerText;
+            const remarks = row.querySelector('.cell-remarks').innerText;
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(22);
+            doc.setTextColor(99, 102, 241);
+            doc.text("GCC SMART", 105, 20, { align: "center" });
+            
+            doc.setFontSize(14);
+            doc.setTextColor(45, 55, 72);
+            doc.text("SALES CLOSURE RECEIPT", 105, 30, { align: "center" });
+            
+            doc.setDrawColor(237, 242, 247);
+            doc.line(20, 35, 190, 35);
+
+            doc.autoTable({
+                startY: 45,
+                body: [
+                    ["Customer Name", customer],
+                    ["Closure Date", date],
+                    ["Assigned Manager", manager],
+                    ["Lead Executive", executive],
+                    ["Closure Amount", "INR " + amount],
+                    ["Remarks", remarks]
+                ],
+                theme: 'striped',
+                styles: { fontSize: 11, cellPadding: 8 },
+                columnStyles: { 0: { fontStyle: 'bold', width: 50 } }
+            });
+
+            doc.setFontSize(10);
+            doc.setTextColor(113, 128, 150);
+            doc.text("This is an electronically generated system document.", 105, doc.lastAutoTable.finalY + 20, { align: "center" });
+
+            doc.save(`Sale_${customer}_${date}.pdf`);
+        }
+
+        window.onload = applySalesFilters;
+    </script>
+</body>
+</html>

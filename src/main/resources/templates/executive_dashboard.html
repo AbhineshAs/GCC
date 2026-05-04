@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Executive Dashboard | GCC Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-main: #f3f4f9; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-primary: #1e293b; --text-secondary: #64748b;
+            --indigo-accent: #6366f1; --brd: #e2e8f0; --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --success: #10b981; --warning: #f59e0b; --danger: #f43f5e;
+            --sidebar-width: 280px; --sidebar-collapsed-width: 85px;
+        }
+
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+
+        /* SIDEBAR STRUCTURE */
+        .sidebar { width: var(--sidebar-width); background: var(--sidebar-bg); height: 100vh; padding: 2.5rem 1.2rem; position: fixed; border-right: 1px solid var(--brd); z-index: 100; display: flex; flex-direction: column; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 4px 0 24px rgba(0,0,0,0.02); box-sizing: border-box; }
+        body.collapsed .sidebar { width: var(--sidebar-collapsed-width); padding: 2.5rem 0.8rem; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; padding: 0 10px; }
+        .logo-text { color: var(--indigo-accent); font-weight: 800; font-size: 1.3rem; letter-spacing: -1px; transition: opacity 0.3s; white-space: nowrap; }
+        body.collapsed .logo-text { opacity: 0; pointer-events: none; }
+        #toggleBtn { background: #f1f5ff; border: none; color: var(--indigo-accent); padding: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        
+        .nav-group { display: flex; flex-direction: column; gap: 6px; flex-grow: 1; }
+        .nav-item { padding: 14px 18px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 15px; border-radius: 14px; font-weight: 600; font-size: 0.9rem; white-space: nowrap; transition: 0.2s; }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); }
+        .nav-icon { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+        body.collapsed .nav-text { display: none; }
+
+        /* RESTORED LOGOUT BOX */
+        .logout-box { padding-top: 20px; border-top: 1px solid var(--brd); margin-top: auto; padding-bottom: 10px; }
+        .logout-link { color: var(--danger); font-weight: 700; display: flex; align-items: center; gap: 15px; text-decoration: none; padding: 12px 16px; border-radius: 12px; transition: 0.2s; font-size: 0.9rem; }
+        .logout-link:hover { background: #fff1f2; }
+
+        /* CONTENT AREA */
+        .main-wrapper { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 4rem; box-sizing: border-box; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        body.collapsed .main-wrapper { margin-left: var(--sidebar-collapsed-width); width: calc(100% - var(--sidebar-collapsed-width)); }
+
+        .dashboard-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 3.5rem; position: relative; }
+        .dashboard-header h1 { font-weight: 900; margin: 0; font-size: 2.5rem; letter-spacing: -2px; }
+        
+        .header-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+        .user-pill { display: flex; align-items: center; gap: 12px; background: white; padding: 8px 18px; border-radius: 50px; border: 1px solid var(--brd); box-shadow: var(--shadow); transition: 0.3s; cursor: pointer; text-decoration: none; color: inherit; }
+        .user-pill:hover { transform: translateY(-2px); border-color: var(--indigo-accent); }
+        .avatar-sm { width: 35px; height: 35px; border-radius: 12px; background: var(--indigo-accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; }
+
+        /* SESSION INFO CARD */
+        .session-info-card { background: white; padding: 12px 20px; border-radius: 20px; border: 1px solid var(--brd); display: flex; align-items: center; gap: 20px; box-shadow: var(--shadow); }
+        .session-stat { display: flex; flex-direction: column; }
+        .session-label { font-size: 0.6rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+        .session-value { font-family: 'Inter', sans-serif; font-weight: 800; color: var(--text-primary); font-size: 0.95rem; }
+        .active-session-value { font-family: 'Inter', monospace; color: var(--indigo-accent); font-size: 1.1rem; }
+        .pulse-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse-green 2s infinite; }
+
+        /* KPI CARDS */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-bottom: 40px; }
+        .kpi-card { background: var(--card-bg); padding: 25px; border-radius: 28px; border: 1px solid var(--brd); box-shadow: var(--shadow); position: relative; transition: 0.3s; overflow: hidden; }
+        .kpi-card:hover { transform: translateY(-5px); }
+        .kpi-card h3 { font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin: 0; }
+        .kpi-card .value { font-size: 2.5rem; font-weight: 900; margin-top: 10px; display: block; letter-spacing: -1.5px; }
+
+        /* DATA GRID */
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1.6fr; gap: 30px; }
+        .action-card { background: var(--card-bg); padding: 2.2rem; border-radius: 32px; border: 1px solid var(--brd); box-shadow: var(--shadow); }
+        .card-title-box { display: flex; align-items: center; gap: 12px; margin-bottom: 2rem; }
+        .card-title-box h3 { margin: 0; font-size: 1.1rem; font-weight: 800; letter-spacing: -0.5px; }
+        .icon-accent { color: var(--indigo-accent); width: 22px; height: 22px; stroke-width: 2.5; }
+
+        /* TABLE */
+        .lead-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+        .lead-table td { padding: 16px 15px; background: #f8fafc; border-top: 1px solid var(--brd); border-bottom: 1px solid var(--brd); font-size: 0.9rem; vertical-align: middle; }
+        .lead-table td:first-child { border-left: 1px solid var(--brd); border-radius: 12px 0 0 12px; font-weight: 700; }
+        .lead-table td:last-child { border-right: 1px solid var(--brd); border-radius: 0 12px 12px 0; }
+        
+        .status-badge { padding: 5px 12px; border-radius: 8px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; border: 1px solid var(--brd); }
+        .badge-overdue { color: var(--danger); border-color: #fecdd3; background: #fff1f2; }
+        .badge-pending { color: var(--warning); border-color: #fef3c7; background: #fffbeb; }
+        .badge-complete { color: var(--success); border-color: #d1fae5; background: #f0fdf4; }
+        
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="logo-text">GCC SMART</span>
+            <button id="toggleBtn" onclick="toggleSidebar()">
+                <svg id="toggleIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path></svg>
+            </button>
+        </div>
+        <div class="nav-group">
+            <a th:href="@{/executive/dashboard}" class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                <span class="nav-text">Overview</span>
+            </a>
+            <a th:href="@{/executive/tasks}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                <span class="nav-text">My Duties</span>
+            </a>
+            <a th:href="@{/executive/lead-capture}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"/></svg>
+                <span class="nav-text">Lead Capture</span>
+            </a>
+            <a th:href="@{/executive/follow-ups}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span class="nav-text">Pipeline</span>
+            </a>
+            <a th:href="@{/leave/apply}" class="nav-item">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+    </svg>
+    <span class="nav-text">Apply Leave</span>
+</a>
+            <a th:href="@{/executive/closed-sales}" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="nav-text">Closed Sales</span></a>
+            <a th:href="@{/executive/profile}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 kitchen.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <span class="nav-text">Settings</span>
+            </a>
+        </div>
+        
+        <div class="logout-box">
+            <a th:href="@{/logout}" class="logout-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span class="nav-text">Logout System</span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <header class="dashboard-header">
+            <div>
+                <h1>Executive Dashboard</h1>
+                <p>Track your sales performance and lead lifecycle</p>
+            </div>
+            <div class="header-actions">
+                <a th:href="@{/executive/profile}" class="user-pill">
+                    <img th:if="${executive.profilePicture != null}" th:src="|data:image/png;base64,${executive.profilePicture}|" class="avatar-sm">
+                    <div th:unless="${executive.profilePicture != null}" class="avatar-sm" th:text="${#strings.substring(executive.name, 0, 1)}">E</div>
+                    <span style="font-weight: 800; font-size: 0.85rem;" th:text="${executive.name}">Name</span>
+                </a>
+
+                <div th:if="${checkInTime != null}" class="session-info-card">
+    <div class="session-stat">
+        <span class="session-label">Login Time</span>
+        <span class="session-value" th:text="${#temporals.format(T(java.time.LocalDateTime).parse(checkInTime), 'hh:mm a')}">00:00 AM</span>
+    </div>
+    <div style="width: 1px; height: 30px; background: var(--brd);"></div>
+    <div class="session-stat">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="pulse-dot"></div>
+            <span class="session-label">Active Session</span>
+        </div>
+        <span id="activeTimer" class="session-value active-session-value">00:00:00</span>
+    </div>
+</div>
+            </div>
+        </header>
+
+        <div class="kpi-grid">
+            <div class="kpi-card" style="background: linear-gradient(to right, #f1f5ff, #fff);">
+                <h3>Total Leads</h3>
+                <span class="value" th:text="${leads.size()}" style="color: var(--indigo-accent);">0</span>
+            </div>
+            <div class="kpi-card" style="background: linear-gradient(to right, #fff1f2, #fff);">
+                <h3>Overdue Action</h3>
+                <span class="value" th:text="${overdueCount}" style="color: var(--danger);">0</span>
+            </div>
+            <div class="kpi-card" style="background: linear-gradient(to right, #fffbeb, #fff);">
+                <h3>Upcoming Tasks</h3>
+                <span class="value" th:text="${pendingTaskCount}" style="color: var(--warning);">0</span>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="action-card">
+                <div class="card-title-box">
+                    <svg class="icon-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
+                    <h3>Source Distribution</h3>
+                </div>
+                <div style="height: 260px;"><canvas id="sourceChart"></canvas></div>
+            </div>
+
+            <div class="action-card">
+                <div class="card-title-box">
+                    <svg class="icon-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <h3>Follow-up Pipeline</h3>
+                </div>
+                <table class="lead-table">
+                    <thead>
+                        <tr style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">
+                            <th style="text-align: left; padding-bottom: 10px;">Customer</th>
+                            <th style="text-align: left; padding-bottom: 10px;">Date</th>
+                            <th style="text-align: right; padding-bottom: 10px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="lead, iter : ${leads}" th:if="${iter.index < 6}">
+                            <td th:text="${lead.customerName}"></td>
+                            <td th:text="${lead.followUpDate != null ? lead.followUpDate : 'No Date'}" style="font-weight: 600;"></td>
+                            <td style="text-align:right;">
+                                <span th:if="${lead.followUpStatus == 'COMPLETED' || lead.followUpStatus == 'COMPLETE'}" class="status-badge badge-complete">Done</span>
+                                <span th:if="${lead.followUpStatus == 'PENDING' && lead.followUpDate != null && lead.followUpDate.isBefore(T(java.time.LocalDate).now())}" class="status-badge badge-overdue">Overdue</span>
+                                <span th:if="${lead.followUpStatus == 'PENDING' && (lead.followUpDate == null || !lead.followUpDate.isBefore(T(java.time.LocalDate).now()))}" class="status-badge badge-pending">Pending</span>
+                            </td>
+                        </tr>
+                        <tr th:if="${leads.empty}"><td colspan="3" style="text-align:center; padding: 30px; color: var(--text-secondary); font-weight: 500;">No pipeline activity found.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        function toggleSidebar() {
+            document.body.classList.toggle('collapsed');
+            const icon = document.getElementById('toggleIcon');
+            icon.innerHTML = document.body.classList.contains('collapsed') 
+                ? '<path d="M13 17l5-5-5-5M6 17l5-5-5-5"></path>' 
+                : '<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path>';
+        }
+
+        const ctx = document.getElementById('sourceChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: /*[[${sourceLabels}]]*/ [],
+                datasets: [{
+                    data: /*[[${sourceData}]]*/ [],
+                    backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#f43f5e'],
+                    borderWidth: 4, borderColor: '#ffffff', hoverOffset: 15
+                }]
+            },
+            options: { cutout: '80%', maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20, font: { weight: '700', family: 'Inter', size: 11 } } } } }
+        });
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkInStr = /*[[${checkInTime}]]*/ null;
+            const display = document.getElementById('activeTimer');
+            
+            if (!checkInStr || !display) return;
+
+            const startTime = new Date(checkInStr).getTime();
+
+            function updateClock() {
+                const now = new Date().getTime();
+                const diff = now - startTime;
+
+                if (diff >= 0) {
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    const s = Math.floor((diff % 60000) / 1000);
+
+                    display.innerText = 
+                        String(h).padStart(2, '0') + ":" + 
+                        String(m).padStart(2, '0') + ":" + 
+                        String(s).padStart(2, '0');
+                }
+            }
+
+            setInterval(updateClock, 1000);
+            updateClock(); 
+        });
+    </script>
+</body>
+</html>

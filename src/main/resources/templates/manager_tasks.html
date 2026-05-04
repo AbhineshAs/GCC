@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>My Assigned Tasks | GCC Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f3f4f9; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-primary: #1e293b; --text-secondary: #64748b;
+            --indigo-accent: #6366f1; --brd: #e2e8f0; --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --danger: #f43f5e; --success: #10b981; --warning: #f59e0b;
+            --sidebar-width: 280px; --sidebar-collapsed-width: 85px;
+        }
+
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+
+        /* SIDEBAR STRUCTURE */
+        .sidebar { 
+            width: var(--sidebar-width); background: var(--sidebar-bg); height: 100vh; 
+            padding: 2rem 1.2rem; position: fixed; border-right: 1px solid var(--brd); 
+            z-index: 100; display: flex; flex-direction: column;
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.02); box-sizing: border-box;
+        }
+        body.collapsed .sidebar { width: var(--sidebar-collapsed-width); padding: 2rem 0.8rem; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; padding: 0 10px; }
+        .logo-text { color: var(--indigo-accent); font-weight: 800; font-size: 1.4rem; letter-spacing: -1px; transition: opacity 0.3s; }
+        body.collapsed .logo-text { opacity: 0; pointer-events: none; width: 0; }
+        #toggleBtn { background: #f1f5ff; border: none; color: var(--indigo-accent); padding: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+
+        .nav-group { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; overflow-y: auto; }
+        .nav-item { padding: 14px 18px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 15px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; white-space: nowrap; transition: 0.3s; }
+        .nav-icon { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+        body.collapsed .nav-text { display: none; }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); }
+        
+        .logout-box { padding-top: 20px; border-top: 1px solid var(--brd); margin-top: auto; padding-bottom: 10px; }
+        .logout-link { color: var(--danger) !important; font-weight: 700; display: flex; align-items: center; gap: 15px; text-decoration: none; padding: 12px 16px; border-radius: 12px; transition: 0.2s; font-size: 0.95rem; }
+
+        /* CONTENT */
+        .main-wrapper { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 3.5rem; box-sizing: border-box; transition: 0.4s; }
+        body.collapsed .main-wrapper { margin-left: var(--sidebar-collapsed-width); width: calc(100% - var(--sidebar-collapsed-width)); }
+
+        .page-header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
+        .session-info-card { background: white; padding: 12px 20px; border-radius: 20px; border: 1px solid var(--brd); display: flex; align-items: center; gap: 20px; box-shadow: var(--shadow); }
+        .session-label { font-size: 0.6rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .session-value { font-weight: 800; color: var(--text-primary); font-size: 0.95rem; }
+        .active-session-value { font-family: 'Inter', monospace; color: var(--indigo-accent); font-size: 1.1rem; }
+        .pulse-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse-green 2s infinite; }
+
+        /* REMINDER CARDS */
+        .reminder-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .reminder-card { padding: 20px; border-radius: 20px; display: flex; align-items: center; gap: 15px; border: 1px solid var(--brd); box-shadow: var(--shadow); background: white; }
+        .reminder-card b { font-size: 1.2rem; }
+        .reminder-card.overdue { border-left: 5px solid var(--danger); color: var(--danger); }
+        .reminder-card.today { border-left: 5px solid var(--warning); color: var(--warning); }
+
+        .action-card { background: var(--card-bg); padding: 2.2rem; border-radius: 28px; border: 1px solid var(--brd); box-shadow: var(--shadow); margin-bottom: 30px; }
+        
+        .task-table { width: 100%; border-collapse: separate; border-spacing: 0 12px; margin-top: -12px; }
+        .task-table th { text-align: left; padding: 0 20px; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+        .task-table td { padding: 20px; background: #ffffff; border-top: 1px solid var(--brd); border-bottom: 1px solid var(--brd); vertical-align: middle; }
+        .task-table td:first-child { border-left: 1px solid var(--brd); border-radius: 16px 0 0 16px; }
+        .task-table td:last-child { border-right: 1px solid var(--brd); border-radius: 0 16px 16px 0; }
+
+        .status-pill { padding: 6px 12px; border-radius: 10px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; border: 1px solid var(--brd); }
+        .btn-complete { background: var(--indigo-accent); color: white; border: none; padding: 10px 20px; border-radius: 12px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: 0.3s; }
+        .btn-complete:hover { background: #4f46e5; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(99, 102, 241, 0.2); }
+
+        .toast-notif { position: fixed; top: 30px; right: 30px; z-index: 9999; background: white; padding: 15px 25px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); display: none; align-items: center; gap: 15px; border-left: 5px solid var(--success); transform: translateX(120%); transition: 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+    </style>
+</head>
+<body>
+
+    <div id="successToast" class="toast-notif">
+        <div style="width: 24px; height: 24px; background: var(--success); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900;">✓</div>
+        <div>
+            <div style="font-weight: 800; font-size: 0.9rem; color: var(--text-primary);">Task Completed</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary);">Your update has been submitted successfully.</div>
+        </div>
+    </div>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="logo-text">GCC SMART</span>
+            <button id="toggleBtn" onclick="toggleSidebar()">
+                <svg id="toggleIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path></svg>
+            </button>
+        </div>
+        <div class="nav-group">
+            <a th:href="@{/manager/dashboard}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                <span class="nav-text">Overview</span>
+            </a>
+            <a th:href="@{/manager/my-leads}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"/></svg>
+                <span class="nav-text">My Leads</span>
+            </a>
+            <a th:href="@{/manager/tasks}" class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                <span class="nav-text">Tasks</span>
+            </a>
+            <a th:href="@{/manager/assign-hr-task}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span class="nav-text">Assign HR Tasks</span>
+            </a>
+            <a th:href="@{/manager/pipeline}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                <span class="nav-text">Pipeline</span>
+            </a>
+            <a th:href="@{/manager/lead-capture}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"/></svg>
+                <span class="nav-text">Team Leads</span>
+            </a>
+            <a th:href="@{/manager/executives}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path></svg>
+                <span class="nav-text">Manage Team</span>
+            </a>
+            <a th:href="@{/manager/closed-sales}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span class="nav-text">Team Sales</span>
+            </a>
+            <a th:href="@{/manager/performance}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+                <span class="nav-text">Performance</span>
+            </a>
+            
+            <a th:href="@{/manager/leave/requests}" class="nav-item">
+    			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path></svg>
+    			<span class="nav-text">Team Leaves</span>
+    			<span th:if="${!pendingLeaves.isEmpty()}" style="width: 8px; height: 8px; background: var(--danger); border-radius: 50%; margin-left: auto;"></span>
+			</a>
+			<a th:href="@{/leave/apply}" class="nav-item">
+    			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+    			<span class="nav-text">Apply My Leave</span>
+			</a>
+			
+            <a th:href="@{/manager/profile}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <span class="nav-text">Settings</span>
+            </a>
+        </div>
+        
+        <div class="logout-box">
+            <a th:href="@{/logout}" class="logout-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span class="nav-text">Logout System</span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <div class="page-header-container">
+            <header>
+                <h1 style="margin: 0; font-weight: 900; letter-spacing: -2px; font-size: 2.4rem;">Admin Assignments</h1>
+                <p style="color: var(--text-secondary); margin: 5px 0 0 0; font-weight: 500;">Complete your pending tasks assigned by Administration.</p>
+            </header>
+
+            <div th:if="${checkInTime != null}" class="session-info-card">
+                <div class="session-stat">
+                    <span class="session-label">Login Time</span>
+                    <span class="session-value" th:text="${#temporals.format(T(java.time.LocalDateTime).parse(checkInTime), 'hh:mm a')}">00:00 AM</span>
+                </div>
+                <div style="width: 1px; height: 30px; background: var(--brd);"></div>
+                <div class="session-stat">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="pulse-dot"></div>
+                        <span class="session-label">Active Session</span>
+                    </div>
+                    <span id="activeTimer" class="session-value active-session-value">00:00:00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="reminder-grid">
+            <div class="reminder-card overdue" th:if="${overdueCount > 0}">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                <div>
+                    <b th:text="${overdueCount}">0</b> Overdue Assignments
+                </div>
+            </div>
+            <div class="reminder-card today" th:if="${dueTodayCount > 0}">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <div>
+                    <b th:text="${dueTodayCount}">0</b> Tasks Due Today
+                </div>
+            </div>
+        </div>
+
+        <div class="action-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h3 style="font-size: 1rem; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Pending Task Registry</h3>
+                <span style="font-size: 0.7rem; font-weight: 800; color: var(--indigo-accent); background: #f1f5ff; padding: 4px 12px; border-radius: 20px;">ACTION REQUIRED</span>
+            </div>
+
+            <div th:if="${tasks.isEmpty()}" style="text-align: center; padding: 60px 0;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🎉</div>
+                <p style="color: var(--text-secondary); font-weight: 600; font-size: 1.1rem;">All caught up! No pending tasks.</p>
+            </div>
+
+            <table class="task-table" th:if="${!tasks.isEmpty()}">
+                <thead>
+                    <tr>
+                        <th>Task Information</th>
+                        <th>Status Badge</th>
+                        <th>Deadline</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="task : ${tasks}">
+                        <td>
+                            <b th:text="${task.title}" style="display: block; font-size: 1rem; color: var(--text-primary);">Task Title</b>
+                            <p th:text="${task.description}" style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; max-width: 450px;"></p>
+                        </td>
+                        <td>
+                            <span class="status-pill" style="background: #f1f5ff; color: var(--indigo-accent); border: none;">
+                                Admin Assigned
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status-pill" th:text="${#temporals.format(task.dueDate, 'dd MMM yyyy')}"
+                                  th:styleappend="${task.dueDate != null and task.dueDate.isBefore(T(java.time.LocalDate).now()) ? 'color: var(--danger); border-color: var(--danger); background: #fff1f2;' : ''}">
+                                Deadline
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <form th:action="@{/manager/tasks/complete}" method="post" style="margin:0;">
+                                <input type="hidden" name="taskId" th:value="${task.id}">
+                                <button type="submit" class="btn-complete">Mark as Complete</button>
+                            </form>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        function toggleSidebar() {
+            document.body.classList.toggle('collapsed');
+            const icon = document.getElementById('toggleIcon');
+            icon.innerHTML = document.body.classList.contains('collapsed') 
+                ? '<path d="M13 17l5-5-5-5M6 17l5-5-5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path>' 
+                : '<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path>';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has('success')) {
+                const toast = document.getElementById('successToast');
+                toast.style.display = 'flex';
+                setTimeout(() => { toast.style.transform = 'translateX(0)'; }, 100);
+                url.searchParams.delete('success');
+                window.history.replaceState({}, document.title, url.pathname);
+                setTimeout(() => {
+                    toast.style.transform = 'translateX(120%)';
+                    setTimeout(() => { toast.style.display = 'none'; }, 500);
+                }, 4000);
+            }
+
+            const checkInStr = /*[[${checkInTime}]]*/ null;
+            const display = document.getElementById('activeTimer');
+            if (!checkInStr || !display) return;
+            const startTime = new Date(checkInStr).getTime();
+            function updateClock() {
+                const now = new Date().getTime();
+                const diff = now - startTime;
+                if (diff >= 0) {
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    const s = Math.floor((diff % 60000) / 1000);
+                    display.innerText = String(h).padStart(2, '0') + ":" + String(m).padStart(2, '0') + ":" + String(s).padStart(2, '0');
+                }
+            }
+            setInterval(updateClock, 1000);
+            updateClock();
+        });
+    </script>
+</body>
+</html>

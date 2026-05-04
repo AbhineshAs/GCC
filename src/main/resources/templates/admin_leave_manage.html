@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Leave Approvals | GCC Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* ... use the same CSS root and sidebar styles from your dashboard ... */
+        :root { --bg-main: #f3f4f9; --indigo-accent: #6366f1; --brd: #e2e8f0; --white: #ffffff; }
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); }
+        .main-wrapper { margin-left: 280px; width: calc(100% - 280px); padding: 4rem; box-sizing: border-box; }
+        .action-card { background: var(--white); padding: 2.5rem; border-radius: 32px; border: 1px solid var(--brd); box-shadow: 0 10px 15px rgba(0,0,0,0.04); }
+        
+        .approval-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
+        .approval-table td { padding: 20px; background: #f8fafc; border-top: 1px solid var(--brd); border-bottom: 1px solid var(--brd); }
+        .approval-table td:first-child { border-left: 1px solid var(--brd); border-radius: 15px 0 0 15px; }
+        .approval-table td:last-child { border-right: 1px solid var(--brd); border-radius: 0 15px 15px 0; }
+        
+        .btn-approve { background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+        .btn-reject { background: #f43f5e; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+        <header style="margin-bottom: 3rem;">
+            <h1 th:text="${viewTitle}">Leave Approvals</h1>
+            <p style="color: #64748b;">Review and take action on pending applications</p>
+        </header>
+
+        <div class="action-card">
+            <table class="approval-table">
+                <thead>
+                    <tr style="text-align: left; font-size: 0.75rem; color: #64748b; text-transform: uppercase;">
+                        <th>Employee</th>
+                        <th>Type</th>
+                        <th>Duration</th>
+                        <th>Reason</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="leave : ${pendingLeaves}">
+                        <td>
+                            <b th:text="${leave.user.name}">Name</b><br>
+                            <small th:text="${leave.user.role}">Role</small>
+                        </td>
+                        <td th:text="${leave.leaveType}">Type</td>
+                        <td>
+                            <span th:text="${leave.startDate}"></span> to <span th:text="${leave.endDate}"></span><br>
+                            <small th:text="${leave.getTotalDays() + ' Days'}"></small>
+                        </td>
+                        <td th:text="${leave.reason}">Reason</td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                                <form th:action="@{/leave/action}" method="post">
+                                    <input type="hidden" name="id" th:value="${leave.id}">
+                                    <button type="submit" name="action" value="APPROVE" class="btn-approve">Approve</button>
+                                    <button type="submit" name="action" value="REJECT" class="btn-reject">Reject</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(pendingLeaves)}">
+                        <td colspan="5" style="text-align: center; padding: 50px; color: #64748b;">No pending requests at this time.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

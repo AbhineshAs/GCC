@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Manager Lead Insights | GCC Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f3f4f9; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-primary: #2d3748; --text-secondary: #718096;
+            --indigo-accent: #6366f1; --brd: #edf2f7; --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --success: #10b981; --warning: #f59e0b; --danger: #f43f5e;
+            --sidebar-width: 280px; --sidebar-collapsed-width: 85px;
+        }
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+
+        /* SIDEBAR STRUCTURE - MATCHED TO DASHBOARD */
+        .sidebar { 
+            width: var(--sidebar-width); background: var(--sidebar-bg); height: 100vh; 
+            padding: 2.5rem 1.2rem; position: fixed; border-right: 1px solid var(--brd); 
+            z-index: 100; display: flex; flex-direction: column;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.02);
+            box-sizing: border-box;
+        }
+        body.collapsed .sidebar { width: var(--sidebar-collapsed-width); padding: 2.5rem 0.8rem; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; padding: 0 10px; }
+        .logo-text { color: var(--indigo-accent); font-weight: 800; font-size: 1.4rem; letter-spacing: -1px; transition: opacity 0.3s; }
+        body.collapsed .logo-text { opacity: 0; pointer-events: none; width: 0; }
+        #toggleBtn { background: #f1f5ff; border: none; color: var(--indigo-accent); padding: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        #toggleBtn:hover { background: var(--indigo-accent); color: white; }
+
+        .nav-group { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; overflow-y: auto; }
+        .nav-item { padding: 14px 18px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 15px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; white-space: nowrap; transition: 0.3s; }
+        .nav-icon { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+        body.collapsed .nav-item { justify-content: center; padding: 14px 0; gap: 0; }
+        body.collapsed .nav-text { display: none; }
+        .nav-item:hover { background: #f8fafc; color: var(--indigo-accent); }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08); }
+
+        /* LOGOUT BOX - MATCHED TO DASHBOARD */
+        .logout-box { padding-top: 20px; border-top: 1px solid var(--brd); margin-top: auto; padding-bottom: 10px; }
+        .logout-btn { color: var(--danger) !important; font-weight: 700; transition: 0.2s; text-decoration: none; display: flex; align-items: center; gap: 15px; padding: 14px 18px; border-radius: 14px; }
+        .logout-btn:hover { background: #fff1f2 !important; }
+
+        /* MAIN AREA */
+        .main-wrapper { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 3.5rem; box-sizing: border-box; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        body.collapsed .main-wrapper { margin-left: var(--sidebar-collapsed-width); width: calc(100% - var(--sidebar-collapsed-width)); }
+
+        /* SPLIT LAYOUT */
+        .split-container { display: grid; grid-template-columns: 320px 1fr; gap: 30px; }
+        .manager-list-card { background: white; border-radius: 24px; border: 1px solid var(--brd); padding: 20px; height: fit-content; box-shadow: var(--shadow); }
+        .mgr-item { display: flex; align-items: center; justify-content: space-between; padding: 15px; border-radius: 16px; text-decoration: none; color: var(--text-primary); margin-bottom: 10px; border: 1px solid transparent; transition: 0.3s; }
+        .mgr-item:hover { background: #f8fafc; border-color: var(--brd); }
+        .mgr-item.active { background: #f1f5ff; border-color: var(--indigo-accent); }
+        .mgr-avatar { width: 35px; height: 35px; background: #e0e7ff; color: var(--indigo-accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; }
+        
+        .lead-card { background: white; border-radius: 28px; border: 1px solid var(--brd); padding: 2.2rem; box-shadow: var(--shadow); }
+        
+        /* FILTER BAR STYLE */
+        .filter-bar { display: flex; align-items: flex-end; gap: 15px; background: #f8fafc; padding: 15px 20px; border-radius: 18px; border: 1px solid var(--brd); margin-bottom: 25px; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-label { font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; }
+        .filter-input { padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--brd); font-family: inherit; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); outline: none; transition: 0.2s; }
+        .filter-input:focus { border-color: var(--indigo-accent); }
+        .btn-filter { background: var(--indigo-accent); color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: 0.2s; }
+        .btn-filter:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .hr-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
+        .hr-table th { text-align: left; padding: 0 15px; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; }
+        .hr-table td { padding: 18px 15px; background: #ffffff; border-top: 1px solid var(--brd); border-bottom: 1px solid var(--brd); font-size: 0.9rem; vertical-align: middle; }
+        .hr-table td:first-child { border-left: 1px solid var(--brd); border-radius: 14px 0 0 14px; }
+        .hr-table td:last-child { border-right: 1px solid var(--brd); border-radius: 0 14px 14px 0; }
+        .status-pill { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 800; }
+        .role-badge { font-size: 0.65rem; padding: 2px 8px; border-radius: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(244, 63, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); } }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="logo-text">GCC SMART ADMIN</span>
+            <button id="toggleBtn" onclick="toggleSidebar()">
+                <svg class="nav-icon" id="toggleIcon" viewBox="0 0 24 24"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path></svg>
+            </button>
+        </div>
+        
+        <div class="nav-group">
+            <a th:href="@{/admin/dashboard}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                <span class="nav-text">Overview</span>
+            </a>
+            
+                        <a th:href="@{/admin/payroll}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path></svg>
+                <span class="nav-text">Payroll Mgmt</span>
+            </a>
+            
+            <a th:href="@{/admin/manage-managers}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle></svg>
+                <span class="nav-text">Manage Managers</span>
+            </a>
+            <a th:href="@{/admin/manage-hr}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle></svg>
+                <span class="nav-text">Manage HR</span>
+            </a>
+            <a th:href="@{/admin/manage-executives}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                <span class="nav-text">Manage Executives</span>
+            </a>
+            <a th:href="@{/admin/manager-leads}" class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                <span class="nav-text">Manager Leads</span>
+            </a>
+            
+            <a th:href="@{/admin/leads/report}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span class="nav-text">Leads Export</span>
+            </a>
+            
+            <a th:href="@{/admin/tasks/assign}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span class="nav-text">Assign Tasks</span>
+            </a>
+            <a th:href="@{/admin/performance/managers}" class="nav-item">
+            	<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+    			<span class="nav-text">Manager Analytics</span>
+			</a>
+            <a th:href="@{/admin/attendance/list}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span class="nav-text">Attendance Logs</span>
+            </a>
+            <a th:href="@{/admin/sales}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                <span class="nav-text">Closed Sales</span>
+            </a>
+            <a th:href="@{/admin/finance/terminal}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path></svg>
+                <span class="nav-text">Finance Center</span>
+            </a>
+            <a th:href="@{/admin/leave/requests}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <span class="nav-text">Manager Leaves</span>
+                <span th:if="${pendingLeaves != null and !pendingLeaves.isEmpty()}" 
+                      style="width: 8px; height: 8px; background: var(--danger); border-radius: 50%; margin-left: auto; animation: pulse-red 2s infinite;"></span>
+            </a>
+            
+            <a th:href="@{/admin/profile}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <span class="nav-text">Profile</span>
+            </a>
+        </div>
+
+        <div class="logout-box">
+            <a th:href="@{/logout}" class="nav-item logout-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span class="nav-text">Logout System</span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <header style="margin-bottom: 35px;">
+            <h1 style="font-weight: 800; letter-spacing: -1.5px; margin: 0;">Manager Lead Insights</h1>
+            <p style="color: var(--text-secondary); margin-top: 5px;">Monitor lead distribution for managers and their teams.</p>
+        </header>
+
+        <div class="split-container">
+            <div class="manager-list-card">
+    <h4 style="margin: 0 0 15px 10px; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase;">System Managers</h4>
+    
+    <div style="padding: 0 10px 20px 10px;">
+        <input type="text" id="mgrSearch" onkeyup="filterManagers()" 
+               placeholder="Search managers..." 
+               style="width: 100%; padding: 10px 15px; border-radius: 12px; border: 1.5px solid var(--brd); background: #f8fafc; font-size: 0.85rem; font-weight: 600; outline: none; transition: 0.3s; box-sizing: border-box;">
+    </div>
+
+    <div id="managerContainer">
+        <div th:each="m : ${managers}" class="mgr-wrapper">
+            <a th:href="@{/admin/manager-leads(managerId=${m.id})}" 
+               th:classappend="${selectedManager != null && selectedManager.id == m.id ? 'active' : ''}" 
+               class="mgr-item">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="mgr-avatar" th:text="${#strings.substring(m.name,0,1)}">M</div>
+                    <div>
+                        <div class="mgr-name-text" style="font-weight: 700; font-size: 0.9rem;" th:text="${m.name}">Manager</div>
+                        <div style="font-size: 0.7rem; color: var(--text-secondary);" th:text="${m.email}">email@gcc.com</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+
+            <div class="lead-card">
+                <div th:if="${selectedManager == null}" style="text-align: center; padding: 80px 0;">
+                    <div style="font-size: 4rem; margin-bottom: 20px;">📂</div>
+                    <h3 style="color: var(--text-secondary);">Select a manager to view team leads</h3>
+                </div>
+
+                <div th:if="${selectedManager != null}">
+                    <div style="margin-bottom: 20px;">
+                        <h2 style="margin: 0; font-weight: 800;" th:text="${selectedManager.name} + ' Team Leads'"></h2>
+                        <span class="status-pill" style="background: #f1f5ff; color: var(--indigo-accent); display: inline-block; margin-top: 10px;">
+            Total: <span th:text="${leads.size()}">0</span> Leads
+        </span>
+                    </div>
+
+                    <div class="filter-bar">
+                        <div class="filter-group">
+                            <span class="filter-label">From Date</span>
+                            <input type="date" id="startDate" class="filter-input">
+                        </div>
+                        <div class="filter-group">
+                            <span class="filter-label">To Date</span>
+                            <input type="date" id="endDate" class="filter-input">
+                        </div>
+                        <button class="btn-filter" onclick="filterByDate()">Apply Filter</button>
+                        <button class="btn-filter" style="background:#e2e8f0; color:var(--text-primary);" onclick="resetFilter()">Reset</button>
+                    </div>
+
+                    <table class="hr-table" id="leadTable">
+                        <thead>
+                            <tr>
+                                <th>Client Details</th>
+                                <th>Created Date</th>
+                                <th>Added By (Owner)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="lead : ${leads}" class="lead-row">
+                                <td>
+                                    <div style="font-weight: 700;" th:text="${lead.customerName}">Name</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-secondary);" th:text="${lead.source}">Source</div>
+                                </td>
+                                <td th:attr="data-date=${lead.createdAt}" th:text="${#temporals.format(lead.createdAt, 'dd MMM yyyy')}">Date</td>
+                                <td>
+                                    <div th:if="${lead.user != null}" style="display: flex; flex-direction: column; gap: 4px;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span th:text="${lead.user.name}" style="font-weight: 700; font-size: 0.9rem;"></span>
+                                            <span th:if="${lead.user.id == selectedManager.id}" 
+                                                  class="role-badge" style="background: #e0f2fe; color: #0369a1;">Manager</span>
+                                            <span th:if="${lead.user.id != selectedManager.id}" 
+                                                  class="role-badge" style="background: #f1f5f9; color: #475569;">Team Member</span>
+                                        </div>
+                                        <span style="font-size: 0.75rem; color: var(--text-secondary);" th:text="${lead.user.email}"></span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="status-pill" th:text="${lead.status}"
+                                          th:styleappend="${lead.status == 'Close' ? 'background: #ecfdf5; color: #10b981;' : 'background: #fff7ed; color: #f59e0b;'}">
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleSidebar() { 
+            document.body.classList.toggle('collapsed');
+            const icon = document.getElementById('toggleIcon');
+            icon.innerHTML = document.body.classList.contains('collapsed') 
+                ? '<path d="M13 17l5-5-5-5M6 17l5-5-5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path>' 
+                : '<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path>';
+        }
+
+        function filterByDate() {
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+            const rows = document.querySelectorAll('.lead-row');
+
+            if (!start && !end) return;
+
+            rows.forEach(row => {
+                const dateCell = row.querySelector('[data-date]');
+                const leadDateStr = dateCell.getAttribute('data-date'); 
+                const leadDate = new Date(leadDateStr).setHours(0,0,0,0);
+                
+                let show = true;
+                if (start && leadDate < new Date(start).setHours(0,0,0,0)) show = false;
+                if (end && leadDate > new Date(end).setHours(0,0,0,0)) show = false;
+
+                row.style.display = show ? '' : 'none';
+            });
+        }
+
+        function resetFilter() {
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            document.querySelectorAll('.lead-row').forEach(row => row.style.display = '');
+        }
+        function filterManagers() {
+            const input = document.getElementById('mgrSearch');
+            const filter = input.value.toLowerCase();
+            const wrappers = document.querySelectorAll('.mgr-wrapper');
+
+            wrappers.forEach(wrapper => {
+                const nameText = wrapper.querySelector('.mgr-name-text').textContent;
+                if (nameText.toLowerCase().indexOf(filter) > -1) {
+                    wrapper.style.display = "";
+                } else {
+                    wrapper.style.display = "none";
+                }
+            });
+        }
+    </script>
+</body>
+</html>

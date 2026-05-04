@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Executive Profile | GCC Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f3f4f9; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-primary: #1e293b; --text-secondary: #64748b;
+            --indigo-accent: #6366f1; --brd: #e2e8f0; --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --danger: #ef4444; --success: #10b981; --sidebar-width: 280px; --sidebar-collapsed-width: 85px;
+        }
+
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+
+        /* UNIFIED EXECUTIVE SIDEBAR */
+        .sidebar { width: var(--sidebar-width); background: var(--sidebar-bg); height: 100vh; padding: 2.5rem 1.2rem; position: fixed; border-right: 1px solid var(--brd); z-index: 100; display: flex; flex-direction: column; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 4px 0 24px rgba(0,0,0,0.02); box-sizing: border-box; }
+        body.collapsed .sidebar { width: var(--sidebar-collapsed-width); padding: 2.5rem 0.8rem; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; padding: 0 10px; }
+        .logo-text { color: var(--indigo-accent); font-weight: 800; font-size: 1.3rem; letter-spacing: -1px; transition: opacity 0.3s; white-space: nowrap; }
+        body.collapsed .logo-text { opacity: 0; pointer-events: none; }
+        #toggleBtn { background: #f1f5ff; border: none; color: var(--indigo-accent); padding: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        
+        .nav-group { display: flex; flex-direction: column; gap: 6px; flex-grow: 1; }
+        .nav-item { padding: 14px 18px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 15px; border-radius: 14px; font-weight: 600; font-size: 0.9rem; white-space: nowrap; transition: 0.2s; }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); }
+        .nav-icon { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+        body.collapsed .nav-text { display: none; }
+
+        .logout-box { padding-top: 20px; border-top: 1px solid var(--brd); margin-top: auto; }
+        .logout-link { color: var(--danger); font-weight: 700; display: flex; align-items: center; gap: 15px; text-decoration: none; padding: 12px 16px; border-radius: 12px; transition: 0.2s; font-size: 0.9rem; }
+        .logout-link:hover { background: #fff1f2; }
+        body.collapsed .logout-link { justify-content: center; padding: 12px 0; }
+
+        /* CONTENT AREA */
+        .main-wrapper { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 4rem; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-sizing: border-box; }
+        body.collapsed .main-wrapper { margin-left: var(--sidebar-collapsed-width); width: calc(100% - var(--sidebar-collapsed-width)); }
+
+        .profile-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; }
+        .btn-edit-trigger { background: #1e293b; color: white; border: none; padding: 12px 25px; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.3s; }
+        .btn-edit-trigger:hover { background: var(--indigo-accent); transform: translateY(-2px); }
+
+        .view-card { background: var(--card-bg); border-radius: 32px; border: 1px solid var(--brd); box-shadow: var(--shadow); overflow: hidden; display: flex; }
+        .view-left { background: #f8fafc; width: 320px; padding: 3rem; border-right: 1px solid var(--brd); text-align: center; box-sizing: border-box; }
+        .view-right { flex: 1; padding: 3rem 4rem; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+
+        .avatar-view { width: 140px; height: 140px; border-radius: 40px; object-fit: cover; border: 6px solid white; box-shadow: 0 10px 20px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
+        .placeholder-view { width: 140px; height: 140px; border-radius: 40px; background: var(--indigo-accent); color: white; display: flex; align-items: center; justify-content: center; font-size: 3.5rem; font-weight: 900; margin: 0 auto 1.5rem; border: 6px solid white; }
+
+        .data-label { font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .data-value { font-size: 1.1rem; font-weight: 700; color: #1e293b; }
+
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-content { background: white; width: 850px; border-radius: 35px; display: grid; grid-template-columns: 1fr 1.5fr; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); animation: modalIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes modalIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .modal-sidebar { background: #f8fafc; padding: 3rem; border-right: 1px solid var(--brd); }
+        .modal-body { padding: 3rem; }
+
+        .cam-icon { position: absolute; bottom: -5px; right: -5px; background: var(--indigo-accent); color: white; padding: 8px; border-radius: 12px; border: 3px solid white; cursor: pointer; transition: 0.2s; }
+        input { width: 100%; padding: 12px; border-radius: 10px; border: 1.5px solid var(--brd); background: #f8fafc; margin-bottom: 18px; box-sizing: border-box; font-family: inherit; font-weight: 600; }
+        .btn-update-final { background: var(--indigo-accent); color: white; border: none; width: 100%; padding: 14px; border-radius: 12px; font-weight: 800; cursor: pointer; transition: 0.3s; }
+
+        #statusPopup { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: #1e293b; color: white; padding: 14px 25px; border-radius: 50px; display: flex; align-items: center; gap: 12px; transition: 0.5s; z-index: 2000; font-weight: 600; }
+        #statusPopup.show { transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="logo-text">GCC SMART</span>
+            <button id="toggleBtn" onclick="toggleSidebar()">
+                <svg id="toggleIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path></svg>
+            </button>
+        </div>
+        <div class="nav-group">
+            <a th:href="@{/executive/dashboard}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                <span class="nav-text">Overview</span>
+            </a>
+            <a th:href="@{/executive/tasks}" class="nav-item">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+    <span class="nav-text">My Duties</span>
+</a>
+            <a th:href="@{/executive/lead-capture}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"/></svg>
+                <span class="nav-text">Lead Capture</span>
+            </a>
+            <a th:href="@{/executive/follow-ups}" class="nav-item" th:classappend="${currentPage == 'followups' ? 'active' : ''}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span class="nav-text">Pipeline</span>
+    </a>
+    <a th:href="@{/leave/apply}" class="nav-item">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+    </svg>
+    <span class="nav-text">Apply Leave</span>
+</a>
+                <a th:href="@{/executive/closed-sales}" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="nav-text">Closed Sales</span></a>
+    
+            <a th:href="@{/executive/profile}" class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <span class="nav-text">Settings</span>
+            </a>
+        </div>
+        
+        <div class="logout-box">
+            <a th:href="@{/logout}" class="logout-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span class="nav-text">Logout System</span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <div class="profile-header">
+            <div><h1 style="color:#1e293b; letter-spacing:-1.5px; margin:0; font-weight: 900; font-size: 2.5rem;">Executive Profile</h1><p style="color:var(--text-secondary); font-weight:500;">Manage identity and account safety</p></div>
+            <button class="btn-edit-trigger" onclick="openEditModal()">Edit Profile Hub</button>
+        </div>
+
+        <div class="view-card">
+            <div class="view-left">
+                <img th:if="${executive.profilePicture != null}" th:src="|data:image/png;base64,${executive.profilePicture}|" class="avatar-view">
+                <div th:unless="${executive.profilePicture != null}" class="placeholder-view" th:text="${#strings.substring(executive.name, 0, 1)}">E</div>
+                <h2 th:text="${executive.name}" style="margin:0; letter-spacing:-1px; font-weight: 800;">Executive Name</h2>
+                <p style="background: #f1f5ff; color: var(--indigo-accent); padding: 6px 16px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; margin-top: 15px; display:inline-block; text-transform: uppercase;">Sales Executive</p>
+            </div>
+            <div class="view-right">
+                <div><div class="data-label">Full Name</div><div class="data-value" th:text="${executive.name}">John Doe</div></div>
+                <div><div class="data-label">Email Address</div><div class="data-value" th:text="${executive.email}">exec@gccsmart.com</div></div>
+                <div><div class="data-label">Reports To</div><div class="data-value" th:text="${executive.manager != null ? executive.manager.name : 'Unassigned'}">Manager Name</div></div>
+                <div><div class="data-label">Account Activity</div><div class="data-value" style="color: var(--success);">● Logged In</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-sidebar">
+                <h2 style="letter-spacing: -1.5px; margin-bottom: 2rem; font-weight: 900;">Edit Details</h2>
+                <form th:action="@{/admin/update-profile}" method="post" enctype="multipart/form-data">
+                    <div style="position:relative; width:100px; height:100px; margin:0 auto 20px;">
+                        <img th:if="${executive.profilePicture != null}" th:src="|data:image/png;base64,${executive.profilePicture}|" class="avatar-view" id="modalPreview" style="width:100px;height:100px;margin:0;border-radius:28px;">
+                        <div th:unless="${executive.profilePicture != null}" id="modalPlaceholder" class="placeholder-view" style="width:100px;height:100px;font-size:2rem;margin:0;border-radius:28px;" th:text="${#strings.substring(executive.name, 0, 1)}">E</div>
+                        <label for="imgIn" class="cam-icon"><svg width="14" height="14" fill="white" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></label>
+                        <input type="file" id="imgIn" name="profileImage" style="display:none" onchange="previewImg(this)">
+                    </div>
+                    <button type="button" th:if="${executive.profilePicture != null}" onclick="confirmDelete()" style="background:none; border:none; color:var(--danger); font-size:0.65rem; font-weight:800; cursor:pointer; width:100%; margin-bottom:1.5rem; text-transform:uppercase; text-decoration:underline;">Remove Photo</button>
+                    <label>Display Name</label><input type="text" name="name" th:value="${executive.name}" required>
+                    <label>Email Address</label><input type="email" name="email" th:value="${executive.email}" required>
+                    <button type="submit" class="btn-update-final">Sync Profile</button>
+                </form>
+            </div>
+            <div class="modal-body">
+                <h3 style="margin-top:0; font-weight: 800;">Account Safety</h3>
+                <form th:action="@{/admin/reset-password}" method="post">
+                    <label>Current Password</label><input type="password" name="currentPassword" required>
+                    <label>New Password</label><input type="password" id="np" name="newPassword" required onkeyup="checkP()">
+                    <label>Confirm Password</label><input type="password" id="cp" name="confirmPassword" required onkeyup="checkP()">
+                    <div id="err" style="color:var(--danger); font-size:0.7rem; font-weight:800; margin-top:-15px; margin-bottom:15px; display:none;">MISMATCHED PASSWORDS</div>
+                    <button type="submit" id="sub" class="btn-update-final" style="background: #1e293b;">Change Key</button>
+                </form>
+                <button class="btn-update-final" onclick="closeEditModal()" style="background: #f1f5ff; color: var(--text-primary); margin-top: 2rem;">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
+    <form id="df" th:action="@{/admin/remove-photo}" method="post" style="display:none;"></form>
+    <div id="statusPopup">✅ <span id="stTxt">Action Completed</span></div>
+
+    <script>
+        function toggleSidebar() { 
+            document.body.classList.toggle('collapsed');
+            const icon = document.getElementById('toggleIcon');
+            icon.innerHTML = document.body.classList.contains('collapsed') 
+                ? '<path d="M13 17l5-5-5-5M6 17l5-5-5-5"></path>' 
+                : '<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path>';
+        }
+
+        function openEditModal() { document.getElementById('editModal').style.display = 'flex'; }
+        function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
+        
+        function previewImg(input) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    let p = document.getElementById('modalPreview');
+                    if(p) p.src = e.target.result;
+                    else {
+                        document.getElementById('modalPlaceholder').innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;border-radius:28px;object-fit:cover">`;
+                    }
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function checkP() {
+            const p = document.getElementById('np').value, c = document.getElementById('cp').value;
+            const e = document.getElementById('err'), s = document.getElementById('sub');
+            if(c.length > 0 && p !== c) { e.style.display = 'block'; s.disabled = true; s.style.opacity = '0.5'; }
+            else { e.style.display = 'none'; s.disabled = false; s.style.opacity = '1'; }
+        }
+
+        function confirmDelete() { if(confirm("Remove photo?")) document.getElementById('df').submit(); }
+
+        window.onload = () => {
+            const params = new URLSearchParams(window.location.search);
+            const success = params.get('success');
+            if (success) {
+                const p = document.getElementById('statusPopup'), t = document.getElementById('stTxt');
+                if(success === 'profile_updated') t.innerText = "Identity Synchronized";
+                if(success === 'password_updated') t.innerText = "Security Key Updated";
+                if(success === 'photo_removed') t.innerText = "Avatar Deleted";
+                p.classList.add('show');
+                setTimeout(() => p.classList.remove('show'), 4000);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        };
+
+        window.onclick = (e) => { if(e.target == document.getElementById('editModal')) closeEditModal(); }
+    </script>
+</body>
+</html>

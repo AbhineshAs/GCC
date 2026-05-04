@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Managerial Overview | GCC Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-main: #f3f4f9; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-primary: #1e293b; --text-secondary: #64748b;
+            --indigo-accent: #6366f1; --brd: #e2e8f0; --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --danger: #f43f5e; --success: #10b981; --warning: #f59e0b;
+            --sidebar-width: 280px; --sidebar-collapsed-width: 85px;
+        }
+
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+
+        /* SIDEBAR STRUCTURE */
+        .sidebar { 
+            width: var(--sidebar-width); background: var(--sidebar-bg); height: 100vh; 
+            padding: 2rem 1.2rem; position: fixed; border-right: 1px solid var(--brd); 
+            z-index: 100; display: flex; flex-direction: column;
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.02); box-sizing: border-box;
+        }
+        body.collapsed .sidebar { width: var(--sidebar-collapsed-width); padding: 2rem 0.8rem; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; padding: 0 10px; }
+        .logo-text { color: var(--indigo-accent); font-weight: 800; font-size: 1.4rem; letter-spacing: -1px; transition: opacity 0.3s; }
+        body.collapsed .logo-text { opacity: 0; pointer-events: none; width: 0; }
+        #toggleBtn { background: #f1f5ff; border: none; color: var(--indigo-accent); padding: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+
+        .nav-group { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; overflow-y: auto; }
+        .nav-item { padding: 14px 18px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 15px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; white-space: nowrap; transition: 0.3s; }
+        .nav-icon { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+        body.collapsed .nav-text { display: none; }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); }
+        
+        .logout-box { padding-top: 20px; border-top: 1px solid var(--brd); margin-top: auto; padding-bottom: 10px; }
+        .logout-link { color: var(--danger) !important; font-weight: 700; display: flex; align-items: center; gap: 15px; text-decoration: none; padding: 12px 16px; border-radius: 12px; transition: 0.2s; font-size: 0.95rem; }
+        .logout-link:hover { background: #fff1f2; }
+
+        /* CONTENT */
+        .main-wrapper { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 3.5rem; box-sizing: border-box; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        body.collapsed .main-wrapper { margin-left: var(--sidebar-collapsed-width); width: calc(100% - var(--sidebar-collapsed-width)); }
+
+        .page-header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; position: relative; }
+
+        /* SESSION INFO CARD */
+        .session-info-card { background: white; padding: 12px 20px; border-radius: 20px; border: 1px solid var(--brd); display: flex; align-items: center; gap: 20px; box-shadow: var(--shadow); }
+        .session-stat { display: flex; flex-direction: column; }
+        .session-label { font-size: 0.6rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+        .session-value { font-family: 'Inter', sans-serif; font-weight: 800; color: var(--text-primary); font-size: 0.95rem; }
+        .active-session-value { font-family: 'Inter', monospace; color: var(--indigo-accent); font-size: 1.1rem; }
+        .pulse-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse-green 2s infinite; }
+
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-bottom: 40px; }
+        .kpi-card { background: var(--card-bg); padding: 25px; border-radius: 24px; border: 1px solid var(--brd); box-shadow: var(--shadow); position: relative; overflow: hidden; }
+        .kpi-card::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--indigo-accent); }
+        .kpi-card .value { font-size: 2.2rem; font-weight: 900; margin-top: 12px; display: block; letter-spacing: -1.5px; }
+
+        .dashboard-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 30px; }
+        .action-card { background: var(--card-bg); padding: 2.2rem; border-radius: 28px; border: 1px solid var(--brd); box-shadow: var(--shadow); margin-bottom: 30px; }
+        
+        /* SEARCH COMPONENT */
+        .search-wrapper { position: relative; margin-bottom: 1.5rem; }
+        .pipeline-search { 
+            width: 100%; padding: 12px 15px 12px 40px; background: #f8fafc; 
+            border: 1.5px solid var(--brd); border-radius: 16px; font-family: inherit; 
+            font-size: 0.85rem; transition: 0.3s; box-sizing: border-box;
+        }
+        .pipeline-search:focus { outline: none; border-color: var(--indigo-accent); background: #fff; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.05); }
+        .search-svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
+
+        /* LEAD ENTRIES */
+        .pipeline-scroll { max-height: 480px; overflow-y: auto; padding-right: 5px; }
+        .pipeline-scroll::-webkit-scrollbar { width: 4px; }
+        .pipeline-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
+        .lead-entry { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 1.2rem; background: #f8fafc; border-radius: 20px; 
+            margin-bottom: 12px; border: 1px solid transparent; transition: 0.3s;
+        }
+        .lead-entry:hover { border-color: var(--indigo-accent); background: #ffffff; transform: translateX(4px); }
+        
+        .lead-identity { display: flex; align-items: center; gap: 15px; }
+        .lead-avatar { width: 40px; height: 40px; border-radius: 12px; background: #ffffff; color: var(--indigo-accent); display: flex; align-items: center; justify-content: center; font-weight: 800; border: 1px solid var(--brd); }
+        .lead-names b { font-size: 0.95rem; display: block; letter-spacing: -0.3px; }
+        .lead-names span { font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; }
+
+        .mgr-badge { font-size: 0.6rem; font-weight: 800; color: var(--indigo-accent); background: #e0e7ff; padding: 2px 8px; border-radius: 6px; margin-top: 4px; display: inline-block; text-transform: uppercase; }
+        .status-pill { padding: 6px 12px; border-radius: 10px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; background: #ffffff; border: 1px solid var(--brd); }
+
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="logo-text">GCC SMART</span>
+            <button id="toggleBtn" onclick="toggleSidebar()">
+                <svg id="toggleIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path></svg>
+            </button>
+        </div>
+        <div class="nav-group">
+            <a th:href="@{/manager/dashboard}" class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                <span class="nav-text">Overview</span>
+            </a>
+            
+            <a th:href="@{/manager/my-leads}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"/></svg>
+                <span class="nav-text">My Leads</span>
+            </a>
+            <a th:href="@{/manager/tasks}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                <span class="nav-text">Tasks</span>
+            </a>
+            <a th:href="@{/manager/assign-hr-task}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span class="nav-text">Assign HR Tasks</span>
+            </a>
+            <a th:href="@{/manager/pipeline}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                <span class="nav-text">Pipeline</span>
+            </a>
+            <a th:href="@{/manager/lead-capture}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"/></svg>
+                <span class="nav-text">Team Leads</span>
+            </a>
+            <a th:href="@{/manager/executives}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path></svg>
+                <span class="nav-text">Manage Team</span>
+            </a>
+            <a th:href="@{/manager/closed-sales}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span class="nav-text">Team Sales</span>
+            </a>
+            <a th:href="@{/manager/performance}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+                <span class="nav-text">Performance</span>
+            </a>
+            
+            <a th:href="@{/manager/leave/requests}" class="nav-item">
+    			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path></svg>
+    			<span class="nav-text">Team Leaves</span>
+    			<span th:if="${!pendingLeaves.isEmpty()}" style="width: 8px; height: 8px; background: var(--danger); border-radius: 50%; margin-left: auto;"></span>
+			</a>
+			<a th:href="@{/leave/apply}" class="nav-item">
+    			<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+    			<span class="nav-text">Apply My Leave</span>
+			</a>
+			
+            <a th:href="@{/manager/profile}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <span class="nav-text">Settings</span>
+            </a>
+        </div>
+        
+        <div class="logout-box">
+            <a th:href="@{/logout}" class="logout-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span class="nav-text">Logout System</span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <div class="page-header-container">
+            <header>
+                <h1 style="margin: 0; font-weight: 900; letter-spacing: -2px; font-size: 2.4rem;">Managerial Overview</h1>
+                <p style="color: var(--text-secondary); margin: 5px 0 0 0; font-weight: 500;">Performance Insights &bull; <span th:text="${session.user.name}" style="color: var(--indigo-accent); font-weight: 700;">Manager</span></p>
+            </header>
+
+           <div th:if="${checkInTime != null}" class="session-info-card">
+    <div class="session-stat">
+        <span class="session-label">Login Time</span>
+        <span class="session-value" th:text="${#temporals.format(T(java.time.LocalDateTime).parse(checkInTime), 'hh:mm a')}">00:00 AM</span>
+    </div>
+    <div style="width: 1px; height: 30px; background: var(--brd);"></div>
+    <div class="session-stat">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="pulse-dot"></div>
+            <span class="session-label">Active Session</span>
+        </div>
+        <span id="activeTimer" class="session-value active-session-value">00:00:00</span>
+    </div>
+</div>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card"><h3>Global Leads</h3><span class="value" th:text="${leads.size()}">0</span></div>
+            <div class="kpi-card" style="border-left-color: var(--warning);"><h3>Active Pipeline</h3><span class="value" th:text="${leads.size()}">0</span></div>
+            <div class="kpi-card" style="border-left-color: var(--success);"><h3>Conversion Velocity</h3><span class="value">12.5%</span></div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="left-col">
+                <div class="action-card">
+                    <h3 style="font-size: 1rem; font-weight: 800; margin: 0 0 1.5rem 0; text-transform: uppercase; letter-spacing: 0.5px;">Source Acquisition</h3>
+                    <div style="height: 240px;"><canvas id="sourceChart"></canvas></div>
+                </div>
+                
+                <div class="action-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3 style="font-size: 1rem; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Global Pipeline</h3>
+                        <span id="filterCount" style="font-size: 0.7rem; font-weight: 800; color: var(--indigo-accent); background: #f1f5ff; padding: 4px 10px; border-radius: 20px;" th:text="${leads.size() + ' Total'}"></span>
+                    </div>
+
+                    <div class="search-wrapper">
+                        <svg class="search-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
+                        <input type="text" id="dashboardSearch" class="pipeline-search" placeholder="Filter by customer, owner, or status..." onkeyup="filterPipeline()">
+                    </div>
+
+                    <div class="pipeline-scroll" id="pipelineContainer">
+                        <div th:each="lead : ${leads}" class="lead-entry" 
+                             th:data-search="${lead.customerName.toLowerCase() + ' ' + lead.user.name.toLowerCase() + ' ' + lead.status.toLowerCase()}">
+                            <div class="lead-identity">
+                                <div class="lead-avatar" th:text="${#strings.substring(lead.customerName,0,1)}">L</div>
+                                <div class="lead-names">
+                                    <b th:text="${lead.customerName}">Customer</b>
+                                    <span th:text="'Assigned to ' + ${lead.user.name}">Executive</span>
+                                    <br th:if="${lead.user.role == 'MANAGER'}">
+                                    <span th:if="${lead.user.role == 'MANAGER'}" class="mgr-badge">Administrative Entry</span>
+                                </div>
+                            </div>
+                            <div class="status-pill" th:text="${lead.status}">Status</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="right-col">
+                <div class="action-card">
+                    <h3 style="font-size: 1rem; font-weight: 800; margin: 0 0 1.5rem 0; text-transform: uppercase; letter-spacing: 0.5px;">System Logs</h3>
+                    <div th:each="lead, iter : ${leads}" th:if="${iter.index < 7}" style="padding: 18px 0; border-bottom: 1px solid var(--brd); display: flex; gap: 15px; align-items: center;">
+                        <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--success);"></div>
+                        <div>
+                            <p style="margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">Record <span th:text="${lead.customerName}"></span> validated</p>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;" th:text="'Authenticated by ' + ${lead.user.name}"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        function toggleSidebar() {
+            document.body.classList.toggle('collapsed');
+            const icon = document.getElementById('toggleIcon');
+            icon.innerHTML = document.body.classList.contains('collapsed') 
+                ? '<path d="M13 17l5-5-5-5M6 17l5-5-5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path>' 
+                : '<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path>';
+        }
+
+        // Search/Filter Functionality
+        function filterPipeline() {
+            const query = document.getElementById('dashboardSearch').value.toLowerCase();
+            const entries = document.querySelectorAll('.lead-entry');
+            let visibleCount = 0;
+
+            entries.forEach(entry => {
+                const searchData = entry.getAttribute('data-search');
+                if (searchData.includes(query)) {
+                    entry.style.display = 'flex';
+                    visibleCount++;
+                } else {
+                    entry.style.display = 'none';
+                }
+            });
+
+            document.getElementById('filterCount').innerText = visibleCount + ' Matching';
+        }
+
+        const ctx = document.getElementById('sourceChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: /*[[${sourceLabels}]]*/ [],
+                datasets: [{
+                    data: /*[[${sourceData}]]*/ [],
+                    backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#f43f5e'],
+                    borderWidth: 4, borderColor: '#ffffff', hoverOffset: 12
+                }]
+            },
+            options: { cutout: '82%', maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20, font: { weight: '700', size: 11 } } } } }
+        });
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkInStr = /*[[${checkInTime}]]*/ null;
+            const display = document.getElementById('activeTimer');
+            
+            if (!checkInStr || !display) return;
+
+            const startTime = new Date(checkInStr).getTime();
+
+            function updateClock() {
+                const now = new Date().getTime();
+                const diff = now - startTime;
+
+                if (diff >= 0) {
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    const s = Math.floor((diff % 60000) / 1000);
+
+                    display.innerText = 
+                        String(h).padStart(2, '0') + ":" + 
+                        String(m).padStart(2, '0') + ":" + 
+                        String(s).padStart(2, '0');
+                }
+            }
+
+            setInterval(updateClock, 1000);
+            updateClock(); // Run immediately
+        });
+    </script>
+</body>
+</html>

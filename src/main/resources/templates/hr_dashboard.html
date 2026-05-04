@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>HR Dashboard | GCC Smart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f3f4f9; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-primary: #2d3748; --text-secondary: #718096;
+            --indigo-accent: #6366f1; --brd: #edf2f7; --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            --success: #10b981; --danger: #f43f5e; --warning: #f59e0b;
+            --sidebar-width: 280px; --sidebar-collapsed-width: 85px;
+        }
+        body { margin: 0; display: flex; font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+        
+        /* SIDEBAR STRUCTURE - UNTOUCHED */
+        .sidebar { 
+            width: var(--sidebar-width); background: var(--sidebar-bg); height: 100vh; 
+            padding: 2.5rem 1.2rem; position: fixed; border-right: 1px solid var(--brd); 
+            z-index: 100; display: flex; flex-direction: column;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.02); box-sizing: border-box;
+        }
+        body.collapsed .sidebar { width: var(--sidebar-collapsed-width); padding: 2.5rem 0.8rem; }
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; padding: 0 10px; }
+        .logo-text { color: var(--indigo-accent); font-weight: 800; font-size: 1.4rem; letter-spacing: -1px; transition: opacity 0.3s; white-space: nowrap; }
+        body.collapsed .logo-text { opacity: 0; pointer-events: none; width: 0; }
+        #toggleBtn { background: #f1f5ff; border: none; color: var(--indigo-accent); padding: 8px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        #toggleBtn:hover { background: var(--indigo-accent); color: white; }
+        .nav-group { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; overflow-y: auto; }
+        .nav-item { padding: 14px 18px; color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 15px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; white-space: nowrap; transition: 0.3s; }
+        .nav-icon { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+        body.collapsed .nav-text { display: none; }
+        .nav-item:hover { background: #f8fafc; color: var(--indigo-accent); }
+        .nav-item.active { background: #f1f5ff; color: var(--indigo-accent); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08); }
+        .logout-box { padding-top: 20px; border-top: 1px solid var(--brd); margin-top: auto; padding-bottom: 10px; }
+        .logout-btn { color: var(--danger) !important; font-weight: 700; transition: 0.2s; text-decoration: none; display: flex; align-items: center; gap: 15px; padding: 14px 18px; border-radius: 14px; }
+        .logout-btn:hover { background: #fff1f2 !important; }
+
+        /* MAIN AREA & UPDATED ALIGNMENT */
+        .main-wrapper { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 3rem 4rem; box-sizing: border-box; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        body.collapsed .main-wrapper { margin-left: var(--sidebar-collapsed-width); width: calc(100% - var(--sidebar-collapsed-width)); }
+        
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; }
+        
+        .session-info-card { background: white; padding: 12px 20px; border-radius: 20px; border: 1px solid var(--brd); display: flex; align-items: center; gap: 20px; box-shadow: var(--shadow); }
+        .session-stat { display: flex; flex-direction: column; }
+        .session-label { font-size: 0.6rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+        .session-value { font-family: 'Inter', sans-serif; font-weight: 800; color: var(--text-primary); font-size: 0.95rem; }
+        .active-session-value { font-family: 'Inter', monospace; color: var(--indigo-accent); font-size: 1.1rem; }
+        .pulse-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse-green 2s infinite; }
+        
+        @keyframes pulse-green { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2.5rem; }
+        .stat-card { background: white; padding: 1.5rem; border-radius: 20px; border: 1px solid var(--brd); box-shadow: var(--shadow); transition: transform 0.3s ease; border-left: 6px solid var(--indigo-accent); }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-label { font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; }
+        .stat-value { font-size: 1.8rem; font-weight: 800; display: block; margin-top: 0.5rem; color: var(--text-primary); }
+        .mgr-badge { background: #e0e7ff; color: var(--indigo-accent); padding: 8px 16px; border-radius: 99px; font-weight: 700; font-size: 0.85rem; border: 1px solid #c7d2fe; }
+        .registry-card { background: white; border-radius: 24px; border: 1px solid var(--brd); box-shadow: var(--shadow); overflow: hidden; }
+        .card-header { padding: 1.5rem 2rem; border-bottom: 1px solid var(--brd); display: flex; justify-content: space-between; align-items: center; }
+        .staff-table { width: 100%; border-collapse: collapse; }
+        .staff-table th { text-align: left; padding: 1.2rem 2rem; background: #f8fafc; font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
+        .staff-table td { padding: 1.2rem 2rem; border-bottom: 1px solid var(--brd); vertical-align: middle; }
+        .user-cell { display: flex; align-items: center; gap: 12px; }
+        .avatar { width: 40px; height: 40px; background: #f1f5ff; color: var(--indigo-accent); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; border: 1px solid #e0e7ff; }
+        .identity-text { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); }
+        .email-text { font-size: 0.8rem; color: var(--text-secondary); display: block; }
+        .role-tag { background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+        .btn-action { background: white; color: var(--indigo-accent); border: 1.5px solid var(--brd); padding: 8px 16px; border-radius: 10px; font-weight: 700; font-size: 0.75rem; cursor: pointer; transition: 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-payroll { background: var(--indigo-accent); color: white; border: none; }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="logo-text">GCC SMART HR</span>
+            <button id="toggleBtn" onclick="toggleSidebar()">
+                <svg class="nav-icon" id="toggleIcon" viewBox="0 0 24 24"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path></svg>
+            </button>
+        </div>
+        <div class="nav-group">
+            <a th:href="@{/hr/dashboard}" class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path></svg>
+                <span class="nav-text">Staff Registry</span>
+            </a>
+            
+            <a th:href="@{/hr/payroll}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path></svg>
+                <span class="nav-text">Payroll Center</span>
+            </a>
+            
+           <a th:href="@{/hr/add-executive}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                <span class="nav-text">Add Executive</span>
+            </a>
+            
+            <a th:href="@{/hr/tasks}" class="nav-item">
+            	<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+    			<span class="nav-text">Manager Directives</span>
+			</a>
+            
+            <a th:href="@{/hr/attendance/all}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span class="nav-text">Attendance</span>
+            </a>
+            <a th:href="@{/hr/leave/apply}" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <span class="nav-text">Apply Leave</span>
+            </a>
+        </div>
+        <div class="logout-box">
+            <a th:href="@{/logout}" class="nav-item logout-btn">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span class="nav-text">Logout System</span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <div class="dashboard-header">
+            <div>
+                <h1 style="font-weight: 900; letter-spacing: -2px; font-size: 2.2rem; margin:0;">Staff Management</h1>
+                <div class="mgr-section" style="margin-top: 8px;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary);">Reporting to Manager:</span>
+                    <span class="mgr-badge" th:text="${managerName}">Manager Name</span>
+                </div>
+            </div>
+
+            <div th:if="${checkInTime != null}" class="session-info-card">
+                <div class="session-stat">
+                    <span class="session-label">Login Time</span>
+                    <span class="session-value" th:text="${#temporals.format(T(java.time.LocalDateTime).parse(checkInTime), 'hh:mm a')}">00:00 AM</span>
+                </div>
+                <div style="width: 1px; height: 30px; background: var(--brd);"></div>
+                <div class="session-stat">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="pulse-dot"></div>
+                        <span class="session-label">Active Session</span>
+                    </div>
+                    <span id="activeTimer" class="session-value active-session-value">00:00:00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-label">Total Executives</span>
+                <span class="stat-value" th:text="${executives.size()}">0</span>
+            </div>
+            <div class="stat-card" style="border-left-color: var(--success);">
+                <span class="stat-label">Attendance Rate</span>
+                <span class="stat-value" style="color: var(--success);">94%</span>
+            </div>
+            <div class="stat-card" style="border-left-color: var(--warning);">
+                <span class="stat-label">Pending Payrolls</span>
+                <span class="stat-value" style="color: var(--warning);">3</span>
+            </div>
+        </div>
+
+        <div class="registry-card">
+            <div class="card-header">
+                <h3 style="margin:0; font-size: 1rem; font-weight: 800; color: var(--text-primary);">TEAM MEMBERS</h3>
+                <span class="role-tag" style="background:#e0f2fe; color:#0369a1;">Live Operations</span>
+            </div>
+            <table class="staff-table">
+                <thead>
+                    <tr>
+                        <th>Executive</th>
+                        <th>Designation</th>
+                        <th style="text-align:right;">Action Center</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="exec : ${executives}">
+                        <td>
+                            <div class="user-cell">
+                                <div class="avatar" th:text="${#strings.substring(exec.name, 0, 1)}">E</div>
+                                <div>
+                                    <span class="identity-text" th:text="${exec.name}">Executive Name</span>
+                                    <span class="email-text" th:text="${exec.email}">email@gcc.com</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="role-tag">Team Associate</span></td>
+                        <td style="text-align: right;">
+                            <a class="btn-action btn-payroll">Coming Soon........</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        function toggleSidebar() { 
+            document.body.classList.toggle('collapsed');
+            const icon = document.getElementById('toggleIcon');
+            icon.innerHTML = document.body.classList.contains('collapsed') 
+                ? '<path d="M13 17l5-5-5-5M6 17l5-5-5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path>' 
+                : '<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" fill="none" stroke="currentColor" stroke-width="2.5"></path>';
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            /* Thymeleaf injection for JavaScript */
+            const checkInStr = /*[[${checkInTime}]]*/ null;
+            const display = document.getElementById('activeTimer');
+            
+            if (!checkInStr || !display) return;
+
+            const startTime = new Date(checkInStr).getTime();
+
+            function updateClock() {
+                const now = new Date().getTime();
+                const diff = now - startTime;
+
+                if (diff >= 0) {
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    const s = Math.floor((diff % 60000) / 1000);
+
+                    display.innerText = 
+                        String(h).padStart(2, '0') + ":" + 
+                        String(m).padStart(2, '0') + ":" + 
+                        String(s).padStart(2, '0');
+                }
+            }
+
+            setInterval(updateClock, 1000);
+            updateClock(); 
+        });
+    </script>
+</body>
+</html>
