@@ -7,6 +7,9 @@ RUN mvn clean package -DskipTests
 # Stage 2: Run
 FROM eclipse-temurin:21-jdk
 WORKDIR /app
-COPY --from=build /app/target/crm-0.0.1-SNAPSHOT.jar app.jar
 
-ENTRYPOINT ["java","-jar","/app.jar"]
+# Copy jar correctly
+COPY --from=build /app/target/*.jar app.jar
+
+# Run app
+ENTRYPOINT ["java","-jar","app.jar"]
